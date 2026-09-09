@@ -15,6 +15,10 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import java.util.List;
 
 /**
  * Main Spring Security Configuration class compatible with Spring Security 6.
@@ -67,6 +71,9 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+                // Enable CORS configured in the CorsConfigurationSource bean
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                
                 // 1. Disable CSRF since we are stateless and using JWT tokens
                 .csrf(csrf -> csrf.disable())
 
@@ -82,6 +89,9 @@ public class SecurityConfig {
 
                 // 5. Define endpoint authorization rules
                 .authorizeHttpRequests(auth -> auth
+                        // Permit preflight OPTIONS requests
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        
                         // Public endpoints (Auth, system errors, and Swagger OpenAPI documentation)
                         .requestMatchers("/api/auth/**", "/error").permitAll()
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/api-docs/**")
@@ -102,5 +112,28 @@ public class SecurityConfig {
                         .anyRequest().authenticated());
 
         return http.build();
+    }
+
+    /**
+     * Central CORS configuration bean.
+     */
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(List.of(
+                "http://localhost:8081",
+                "http://localhost:8083",
+                "http://localhost:3000",
+                "http://localhost:5173",
+                "http://127.0.0.1:8081",
+                "http://127.0.0.1:8083",
+                "http://127.0.0.1:3000"
+        ));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "X-Requested-With", "Origin"));
+        configuration.setAllowCredentials(true);
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
     }
 }

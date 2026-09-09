@@ -41,7 +41,6 @@ public class Appointment {
     private Patient patient;
 
     @NotNull(message = "Appointment date is required")
-    @FutureOrPresent(message = "Appointment date must be today or in the future")
     @Column(name = "appointment_date", nullable = false)
     private LocalDate appointmentDate;
 

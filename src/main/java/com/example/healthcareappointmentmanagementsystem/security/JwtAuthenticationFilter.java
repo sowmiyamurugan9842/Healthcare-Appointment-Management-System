@@ -15,8 +15,10 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 
 /**
- * Filter that intercepts incoming HTTP requests, extracts JWT tokens from authorization headers,
- * validates them, and registers authenticated sessions inside Spring's SecurityContext.
+ * Filter that intercepts incoming HTTP requests, extracts JWT tokens from
+ * authorization headers,
+ * validates them, and registers authenticated sessions inside Spring's
+ * SecurityContext.
  */
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
@@ -36,14 +38,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(
             @NonNull HttpServletRequest request,
             @NonNull HttpServletResponse response,
-            @NonNull FilterChain filterChain
-    ) throws ServletException, IOException {
+            @NonNull FilterChain filterChain) throws ServletException, IOException {
 
         final String authHeader = request.getHeader("Authorization");
         final String jwt;
         final String userEmail;
 
-        // 1. Check if the Authorization header is missing or does not start with Bearer scheme
+        // 1. Check if the Authorization header is missing or does not start with Bearer
+        // scheme
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
@@ -56,27 +58,28 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             // 3. Extract user email from JWT
             userEmail = jwtService.extractUsername(jwt);
         } catch (Exception e) {
-            // Gracefully continue filter chain without authentication if token is invalid/expired
+            // Gracefully continue filter chain without authentication if token is
+            // invalid/expired
             filterChain.doFilter(request, response);
             return;
         }
 
-        // 4. Validate token and authenticate if no active authentication exists in context
+        // 4. Validate token and authenticate if no active authentication exists in
+        // context
         if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             UserDetails userDetails = this.customUserDetailsService.loadUserByUsername(userEmail);
 
             if (jwtService.isTokenValid(jwt, userDetails)) {
-                // 5. Build UsernamePasswordAuthenticationToken containing user credentials and authorities
+                // 5. Build UsernamePasswordAuthenticationToken containing user credentials and
+                // authorities
                 UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                         userDetails,
                         null,
-                        userDetails.getAuthorities()
-                );
+                        userDetails.getAuthorities());
 
                 // 6. Attach web request metadata (IP address, session details)
                 authToken.setDetails(
-                        new WebAuthenticationDetailsSource().buildDetails(request)
-                );
+                        new WebAuthenticationDetailsSource().buildDetails(request));
 
                 // 7. Store authentication token inside the SecurityContext
                 SecurityContextHolder.getContext().setAuthentication(authToken);

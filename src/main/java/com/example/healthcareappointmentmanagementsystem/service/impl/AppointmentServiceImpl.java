@@ -8,11 +8,15 @@ import com.example.healthcareappointmentmanagementsystem.entity.Doctor;
 import com.example.healthcareappointmentmanagementsystem.entity.Patient;
 import com.example.healthcareappointmentmanagementsystem.exception.BadRequestException;
 import com.example.healthcareappointmentmanagementsystem.exception.ResourceNotFoundException;
+import com.example.healthcareappointmentmanagementsystem.exception.UnauthorizedException;
 import com.example.healthcareappointmentmanagementsystem.mapper.AppointmentMapper;
 import com.example.healthcareappointmentmanagementsystem.repository.AppointmentRepository;
 import com.example.healthcareappointmentmanagementsystem.repository.DoctorRepository;
 import com.example.healthcareappointmentmanagementsystem.repository.PatientRepository;
 import com.example.healthcareappointmentmanagementsystem.service.AppointmentService;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -191,6 +195,69 @@ public class AppointmentServiceImpl implements AppointmentService {
         }
 
         appointment.setStatus(AppointmentStatus.COMPLETED);
+        Appointment savedAppointment = appointmentRepository.save(appointment);
+        return appointmentMapper.toResponse(savedAppointment);
+    }
+
+    @Override
+    public AppointmentResponse updateAppointmentStatus(Long id, String status) {
+        Appointment appointment = appointmentRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Appointment not found with ID: " + id));
+
+        // Get authentication details
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null) {
+            throw new UnauthorizedException("User is not authenticated");
+        }
+
+        boolean isAdmin = authentication.getAuthorities().contains(new SimpleGrantedAuthority("ROLE_ADMIN"));
+        boolean isDoctor = authentication.getAuthorities().contains(new SimpleGrantedAuthority("ROLE_DOCTOR"));
+        boolean isPatient = authentication.getAuthorities().contains(new SimpleGrantedAuthority("ROLE_PATIENT"));
+        String email = authentication.getName();
+
+        // Enforce role-based access security
+        if (isAdmin) {
+            // Admin has full control
+        } else if (isDoctor) {
+            // Doctor can only update their own appointments
+            if (appointment.getDoctor() == null || appointment.getDoctor().getUser() == null ||
+                    !appointment.getDoctor().getUser().getEmail().equalsIgnoreCase(email)) {
+                throw new BadRequestException("You are not authorized to modify this appointment's status.");
+            }
+        } else if (isPatient) {
+            // Patient can only update their own appointments and ONLY to CANCELLED/REJECTED
+            if (appointment.getPatient() == null || appointment.getPatient().getUser() == null ||
+                    !appointment.getPatient().getUser().getEmail().equalsIgnoreCase(email)) {
+                throw new BadRequestException("You are not authorized to modify this appointment's status.");
+            }
+            if (!"CANCELLED".equalsIgnoreCase(status) && !"REJECTED".equalsIgnoreCase(status)) {
+                throw new BadRequestException("Patients are only permitted to cancel appointments.");
+            }
+        } else {
+            throw new UnauthorizedException("User does not have an authorized role to perform this action");
+        }
+
+        AppointmentStatus currentStatus = appointment.getStatus();
+
+        if ("APPROVED".equalsIgnoreCase(status) || "CONFIRMED".equalsIgnoreCase(status)) {
+            if (currentStatus != AppointmentStatus.PENDING) {
+                throw new BadRequestException("Only PENDING appointments can be approved. Current status: " + currentStatus);
+            }
+            appointment.setStatus(AppointmentStatus.CONFIRMED);
+        } else if ("REJECTED".equalsIgnoreCase(status) || "CANCELLED".equalsIgnoreCase(status)) {
+            if (currentStatus == AppointmentStatus.COMPLETED) {
+                throw new BadRequestException("Cannot cancel an appointment that is already completed.");
+            }
+            appointment.setStatus(AppointmentStatus.CANCELLED);
+        } else if ("COMPLETED".equalsIgnoreCase(status)) {
+            if (currentStatus != AppointmentStatus.CONFIRMED) {
+                throw new BadRequestException("Only APPROVED appointments can be completed. Current status: " + currentStatus);
+            }
+            appointment.setStatus(AppointmentStatus.COMPLETED);
+        } else {
+            throw new BadRequestException("Invalid status update value: " + status);
+        }
+
         Appointment savedAppointment = appointmentRepository.save(appointment);
         return appointmentMapper.toResponse(savedAppointment);
     }

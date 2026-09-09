@@ -1,6 +1,7 @@
 package com.example.healthcareappointmentmanagementsystem.controller;
 
 import com.example.healthcareappointmentmanagementsystem.dto.request.AppointmentRequest;
+import com.example.healthcareappointmentmanagementsystem.dto.request.AppointmentStatusRequest;
 import com.example.healthcareappointmentmanagementsystem.dto.response.AppointmentResponse;
 import com.example.healthcareappointmentmanagementsystem.entity.AppointmentStatus;
 import com.example.healthcareappointmentmanagementsystem.service.AppointmentService;
@@ -133,6 +134,20 @@ public class AppointmentController {
     @PreAuthorize("hasRole('DOCTOR')")
     public ResponseEntity<AppointmentResponse> completeAppointment(@PathVariable Long id) {
         AppointmentResponse response = appointmentService.completeAppointment(id);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Endpoint to update the status of an appointment.
+     * Maps to PATCH /api/appointments/{id}/status.
+     * Access: ADMIN, DOCTOR, PATIENT (with role-based service-level validation).
+     */
+    @PatchMapping("/{id}/status")
+    @PreAuthorize("hasAnyRole('ADMIN', 'DOCTOR', 'PATIENT')")
+    public ResponseEntity<AppointmentResponse> updateAppointmentStatus(
+            @PathVariable Long id,
+            @Valid @RequestBody AppointmentStatusRequest request) {
+        AppointmentResponse response = appointmentService.updateAppointmentStatus(id, request.getStatus());
         return ResponseEntity.ok(response);
     }
 

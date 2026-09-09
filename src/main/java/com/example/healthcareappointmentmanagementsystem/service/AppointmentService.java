@@ -83,6 +83,15 @@ public interface AppointmentService {
     AppointmentResponse completeAppointment(Long appointmentId);
 
     /**
+     * Updates the status of an appointment.
+     *
+     * @param id     appointment ID
+     * @param status target status (APPROVED, REJECTED, COMPLETED)
+     * @return updated AppointmentResponse DTO
+     */
+    AppointmentResponse updateAppointmentStatus(Long id, String status);
+
+    /**
      * Deletes an appointment record from the database.
      *
      * @param id appointment primary key
