@@ -127,7 +127,11 @@ public class SecurityConfig {
                 "http://localhost:5173",
                 "http://127.0.0.1:8081",
                 "http://127.0.0.1:8083",
-                "http://127.0.0.1:3000"
+                "http://127.0.0.1:3000",
+                "https://careportal-khaki.vercel.app"
+        ));
+        configuration.setAllowedOriginPatterns(List.of(
+                "https://*.vercel.app"
         ));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "X-Requested-With", "Origin"));

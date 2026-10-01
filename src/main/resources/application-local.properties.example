@@ -1,0 +1,14 @@
+# ===================================================================
+# Local Development Profile Configuration Template
+# Copy this file to 'application-local.properties' for local execution
+# (application-local.properties is ignored by .gitignore)
+# ===================================================================
+
+# Local Database Configuration
+SPRING_DATASOURCE_URL=jdbc:mysql://localhost:3306/healthcare_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+SPRING_DATASOURCE_USERNAME=your_local_db_user
+SPRING_DATASOURCE_PASSWORD=your_local_db_password
+
+# Local JWT Secret (Base64 encoded 256-bit string)
+JWT_SECRET=your_local_development_jwt_secret_key_base64_encoded
+JWT_EXPIRATION=86400000
