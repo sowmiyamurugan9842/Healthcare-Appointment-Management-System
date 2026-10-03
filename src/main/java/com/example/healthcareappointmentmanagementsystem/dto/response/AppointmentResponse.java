@@ -26,4 +26,11 @@ public class AppointmentResponse {
     private String reasonForVisit;
     private AppointmentStatus status;
     private Double consultationFee;
+    private java.time.LocalDateTime noShowAt;
+    private String noShowReason;
+    private String markedNoShowBy;
+    private LocalDate followUpDate;
+    private LocalTime followUpTime;
+    private String followUpNotes;
+    private boolean followUpReminderSent;
 }

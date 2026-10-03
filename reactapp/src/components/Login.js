@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { authAPI } from '../services/api';
 
-// Utility function to parse JWT token in client side
+// Utility function to safely parse JWT token client-side
 const parseJwt = (token) => {
   try {
     const base64Url = token.split('.')[1];
@@ -23,6 +23,7 @@ const parseJwt = (token) => {
 function Login({ onLoginSuccess }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
@@ -32,17 +33,17 @@ function Login({ onLoginSuccess }) {
   const validate = () => {
     const tempErrors = {};
     if (!email) {
-      tempErrors.email = 'Email is required';
+      tempErrors.email = 'Email address is required';
     } else if (!/\S+@\S+\.\S+/.test(email)) {
       tempErrors.email = 'Please enter a valid email address';
     }
-    
+
     if (!password) {
       tempErrors.password = 'Password is required';
     } else if (password.length < 6) {
       tempErrors.password = 'Password must be at least 6 characters';
     }
-    
+
     setErrors(tempErrors);
     return Object.keys(tempErrors).length === 0;
   };
@@ -51,19 +52,17 @@ function Login({ onLoginSuccess }) {
     e.preventDefault();
     setErrorMessage('');
     setSuccessMessage('');
-    
+
     if (!validate()) return;
 
     setLoading(true);
     try {
-      // API call returns JWT token string
       const token = await authAPI.login(email, password);
-      
-      // Parse token to get user details
+
       const claims = parseJwt(token);
       if (claims) {
         const rawRole = claims.role || '';
-        const role = rawRole.replace('ROLE_', ''); // "ROLE_ADMIN" -> "ADMIN"
+        const role = rawRole.replace('ROLE_', '');
         const userId = claims.userId;
 
         const userData = {
@@ -73,16 +72,15 @@ function Login({ onLoginSuccess }) {
           token: token
         };
 
-        // Save token & user details to localStorage
         localStorage.setItem('token', token);
         localStorage.setItem('user', JSON.stringify(userData));
 
-        setSuccessMessage('Logged in successfully! Redirecting...');
+        setSuccessMessage('Authentication successful! Opening your clinical portal...');
         onLoginSuccess(userData);
 
         setTimeout(() => {
           navigate('/');
-        }, 1500);
+        }, 1000);
       } else {
         setErrorMessage('Failed to decode authentication token');
       }
@@ -96,46 +94,121 @@ function Login({ onLoginSuccess }) {
   };
 
   return (
-    <div style={{ maxWidth: '450px', margin: '4rem auto 0' }} className="card">
-      <h2 className="form-title">Welcome Back</h2>
-      
-      {errorMessage && <div className="alert alert-danger">⚠️ {errorMessage}</div>}
-      {successMessage && <div className="alert alert-success">✓ {successMessage}</div>}
-
-      <form onSubmit={handleSubmit}>
-        <div className="form-group">
-          <label className="form-label" htmlFor="email">Email Address</label>
-          <input
-            id="email"
-            type="email"
-            className="form-control"
-            placeholder="name@example.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-          {errors.email && <span className="form-error-msg">{errors.email}</span>}
+    <div className="auth-split-container">
+      {/* LEFT HEALTHCARE HERO SECTION */}
+      <div className="auth-hero-pane">
+        <div className="auth-hero-brand">
+          <div className="auth-hero-brand-icon">
+            <span>⚕</span>
+          </div>
+          <span className="auth-hero-brand-name">CarePortal</span>
         </div>
 
-        <div className="form-group">
-          <label className="form-label" htmlFor="password">Password</label>
-          <input
-            id="password"
-            type="password"
-            className="form-control"
-            placeholder="••••••••"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-          {errors.password && <span className="form-error-msg">{errors.password}</span>}
+        <div className="auth-hero-content">
+          <h1 className="auth-hero-title">
+            Modern Clinical Care & Digital Health Platform
+          </h1>
+          <p className="auth-hero-subtitle">
+            Seamlessly connecting certified medical specialists, verified patients, and hospital administrators in one secure clinical workspace.
+          </p>
+
+          <div className="auth-feature-list">
+            <div className="auth-feature-item">
+              <span className="auth-feature-bullet">✓</span>
+              <span>Online Prescription Issuance & Rx Management</span>
+            </div>
+            <div className="auth-feature-item">
+              <span className="auth-feature-bullet">✓</span>
+              <span>Direct Doctor Scheduling & Shift Consultations</span>
+            </div>
+            <div className="auth-feature-item">
+              <span className="auth-feature-bullet">✓</span>
+              <span>Encrypted Records & Role-Based Access Control</span>
+            </div>
+          </div>
         </div>
 
-        <button type="submit" disabled={loading} className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }}>
-          {loading ? 'Signing in...' : 'Sign In'}
-        </button>
-      </form>
+        <div className="auth-hero-footer">
+          CarePortal Healthcare System • Clinical Grade Management
+        </div>
+      </div>
 
-      <div style={{ marginTop: '1.5rem', textAlign: 'center', fontSize: '0.9rem' }}>
-        <p>Don't have an account? <Link to="/register" style={{ color: 'var(--primary)', fontWeight: '500' }}>Register here</Link></p>
+      {/* RIGHT WHITE LOGIN FORM PANE */}
+      <div className="auth-form-pane">
+        <div className="auth-form-header">
+          <h2>Welcome Back</h2>
+          <p>Please enter your credentials to access your portal.</p>
+        </div>
+
+        {errorMessage && <div className="alert alert-danger">⚠️ {errorMessage}</div>}
+        {successMessage && <div className="alert alert-success">✓ {successMessage}</div>}
+
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label className="form-label" htmlFor="email">
+              Email Address
+            </label>
+            <input
+              id="email"
+              type="email"
+              autoComplete="email"
+              className="form-control"
+              placeholder="name@careportal.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+            {errors.email && <span className="form-error-msg">{errors.email}</span>}
+          </div>
+
+          <div className="form-group">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <label className="form-label" htmlFor="password" style={{ marginBottom: 0 }}>
+                Password
+              </label>
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--primary)',
+                  fontSize: '0.8rem',
+                  cursor: 'pointer',
+                  fontWeight: 600
+                }}
+              >
+                {showPassword ? 'Hide' : 'Show'}
+              </button>
+            </div>
+            <input
+              id="password"
+              type={showPassword ? 'text' : 'password'}
+              autoComplete="current-password"
+              className="form-control"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              style={{ marginTop: '0.4rem' }}
+            />
+            {errors.password && <span className="form-error-msg">{errors.password}</span>}
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="btn btn-primary"
+            style={{ width: '100%', marginTop: '0.75rem', padding: '0.75rem', fontSize: '1rem' }}
+          >
+            {loading ? 'Signing In...' : 'Sign In to Portal'}
+          </button>
+        </form>
+
+        <div style={{ marginTop: '2rem', textAlign: 'center', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+          Don't have an account yet?{' '}
+          <Link to="/register" style={{ color: 'var(--primary-dark)', fontWeight: 700 }}>
+            Create an Account
+          </Link>
+        </div>
       </div>
     </div>
   );

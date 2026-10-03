@@ -90,4 +90,42 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
      * @return list of Appointments
      */
     List<Appointment> findByPatientAndAppointmentDate(Patient patient, LocalDate appointmentDate);
+
+    /**
+     * Finds all appointments scheduled prior to a cutoff date with specified active statuses.
+     * Used by the automatic appointment expiry scheduler.
+     *
+     * @param appointmentDate cutoff date (usually LocalDate.now())
+     * @param statuses        collection of statuses (e.g. PENDING, CONFIRMED)
+     * @return list of overdue appointments
+     */
+    List<Appointment> findByAppointmentDateBeforeAndStatusIn(LocalDate appointmentDate, List<AppointmentStatus> statuses);
+
+    /**
+     * Finds all appointments with a specific status where a reminder has not yet been sent.
+     * Used by the automatic appointment reminder scheduler.
+     *
+     * @param status AppointmentStatus enum (e.g. CONFIRMED)
+     * @return list of candidate appointments
+     */
+    List<Appointment> findByStatusAndReminderSentFalse(AppointmentStatus status);
+
+    /**
+     * Finds all appointments on a specific date with a specific status and unsent reminder.
+     *
+     * @param appointmentDate scheduled date
+     * @param status          AppointmentStatus enum
+     * @return list of candidate appointments
+     */
+    List<Appointment> findByAppointmentDateAndStatusAndReminderSentFalse(LocalDate appointmentDate, AppointmentStatus status);
+
+    /**
+     * Finds all appointments with a follow-up scheduled on a specific date where follow-up reminder has not yet been sent.
+     */
+    List<Appointment> findByFollowUpDateAndFollowUpReminderSentFalse(LocalDate followUpDate);
+
+    /**
+     * Finds all appointments with a follow-up scheduled on a specific date where follow-up reminder has not yet been sent and status is not excluded.
+     */
+    List<Appointment> findByFollowUpDateAndStatusNotInAndFollowUpReminderSentFalse(LocalDate followUpDate, java.util.Collection<AppointmentStatus> excludedStatuses);
 }

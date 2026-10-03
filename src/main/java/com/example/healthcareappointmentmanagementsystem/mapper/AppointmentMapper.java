@@ -63,6 +63,13 @@ public class AppointmentMapper {
                 .reasonForVisit(appointment.getReasonForVisit())
                 .status(appointment.getStatus())
                 .consultationFee(fee)
+                .noShowAt(appointment.getNoShowAt())
+                .noShowReason(appointment.getNoShowReason())
+                .markedNoShowBy(appointment.getMarkedNoShowBy())
+                .followUpDate(appointment.getFollowUpDate())
+                .followUpTime(appointment.getFollowUpTime())
+                .followUpNotes(appointment.getFollowUpNotes())
+                .followUpReminderSent(appointment.isFollowUpReminderSent())
                 .build();
     }
 

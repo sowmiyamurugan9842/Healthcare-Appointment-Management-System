@@ -1,8 +1,10 @@
 package com.example.healthcareappointmentmanagementsystem.service;
 
 import com.example.healthcareappointmentmanagementsystem.dto.request.DoctorRequest;
+import com.example.healthcareappointmentmanagementsystem.dto.response.DoctorAvailableSlotsResponse;
 import com.example.healthcareappointmentmanagementsystem.dto.response.DoctorResponse;
 
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -64,4 +66,14 @@ public interface DoctorService {
      * @param id doctor primary key
      */
     void deleteDoctor(Long id);
+
+    /**
+     * Calculates and returns the available appointment slots for a doctor on a specific date.
+     *
+     * @param doctorId doctor primary key
+     * @param date     target appointment date
+     * @return DoctorAvailableSlotsResponse containing doctorId, date, and list of available slot times
+     */
+    DoctorAvailableSlotsResponse getAvailableSlots(Long doctorId, LocalDate date);
 }
+

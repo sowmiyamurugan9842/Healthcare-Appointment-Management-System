@@ -1,13 +1,18 @@
 package com.example.healthcareappointmentmanagementsystem.service.impl;
 
 import com.example.healthcareappointmentmanagementsystem.dto.request.DoctorRequest;
+import com.example.healthcareappointmentmanagementsystem.dto.response.DoctorAvailableSlotsResponse;
 import com.example.healthcareappointmentmanagementsystem.dto.response.DoctorResponse;
+import com.example.healthcareappointmentmanagementsystem.entity.Appointment;
+import com.example.healthcareappointmentmanagementsystem.entity.AppointmentStatus;
 import com.example.healthcareappointmentmanagementsystem.entity.Department;
 import com.example.healthcareappointmentmanagementsystem.entity.Doctor;
 import com.example.healthcareappointmentmanagementsystem.entity.User;
+import com.example.healthcareappointmentmanagementsystem.exception.BadRequestException;
 import com.example.healthcareappointmentmanagementsystem.exception.DuplicateResourceException;
 import com.example.healthcareappointmentmanagementsystem.exception.ResourceNotFoundException;
 import com.example.healthcareappointmentmanagementsystem.mapper.DoctorMapper;
+import com.example.healthcareappointmentmanagementsystem.repository.AppointmentRepository;
 import com.example.healthcareappointmentmanagementsystem.repository.DepartmentRepository;
 import com.example.healthcareappointmentmanagementsystem.repository.DoctorRepository;
 import com.example.healthcareappointmentmanagementsystem.repository.UserRepository;
@@ -15,7 +20,12 @@ import com.example.healthcareappointmentmanagementsystem.service.DoctorService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -29,6 +39,7 @@ public class DoctorServiceImpl implements DoctorService {
     private final UserRepository userRepository;
     private final DepartmentRepository departmentRepository;
     private final DoctorMapper doctorMapper;
+    private final AppointmentRepository appointmentRepository;
 
     /**
      * Constructor injection. Spring Boot injects the repositories and mapper.
@@ -36,12 +47,15 @@ public class DoctorServiceImpl implements DoctorService {
     public DoctorServiceImpl(DoctorRepository doctorRepository,
                              UserRepository userRepository,
                              DepartmentRepository departmentRepository,
-                             DoctorMapper doctorMapper) {
+                             DoctorMapper doctorMapper,
+                             AppointmentRepository appointmentRepository) {
         this.doctorRepository = doctorRepository;
         this.userRepository = userRepository;
         this.departmentRepository = departmentRepository;
         this.doctorMapper = doctorMapper;
+        this.appointmentRepository = appointmentRepository;
     }
+
 
     @Override
     public DoctorResponse createDoctor(DoctorRequest request) {
@@ -155,4 +169,53 @@ public class DoctorServiceImpl implements DoctorService {
         // 2. Delete Doctor (User record will be deleted automatically due to CascadeType.ALL)
         doctorRepository.delete(doctor);
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public DoctorAvailableSlotsResponse getAvailableSlots(Long doctorId, LocalDate date) {
+        // 1. Validate date input
+        if (date == null) {
+            throw new BadRequestException("Appointment date is required");
+        }
+        if (date.isBefore(LocalDate.now())) {
+            throw new BadRequestException("Appointment date must be today or in the future");
+        }
+
+        // 2. Fetch Doctor or throw ResourceNotFoundException
+        Doctor doctor = doctorRepository.findById(doctorId)
+                .orElseThrow(() -> new ResourceNotFoundException("Doctor profile not found with ID: " + doctorId));
+
+        List<String> availableSlots = new ArrayList<>();
+        LocalTime from = doctor.getAvailableFrom();
+        LocalTime to = doctor.getAvailableTo();
+
+        // 3. Generate slots if working hours are defined and valid
+        if (from != null && to != null && from.isBefore(to)) {
+            // Find existing appointments for this doctor on the requested date
+            List<Appointment> existingAppointments = appointmentRepository.findByDoctorAndAppointmentDate(doctor, date);
+            
+            // Active appointments (PENDING, CONFIRMED, COMPLETED) block slots; CANCELLED, EXPIRED, and NO_SHOW do not
+            Set<String> bookedSlots = existingAppointments.stream()
+                    .filter(a -> a.getStatus() != AppointmentStatus.CANCELLED && a.getStatus() != AppointmentStatus.EXPIRED && a.getStatus() != AppointmentStatus.NO_SHOW)
+                    .map(a -> a.getAppointmentTime().format(DateTimeFormatter.ofPattern("HH:mm")))
+                    .collect(Collectors.toSet());
+
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm");
+            LocalTime currentSlot = from;
+            while (!currentSlot.plusMinutes(30).isAfter(to)) {
+                String slotStr = currentSlot.format(formatter);
+                if (!bookedSlots.contains(slotStr)) {
+                    availableSlots.add(slotStr);
+                }
+                currentSlot = currentSlot.plusMinutes(30);
+            }
+        }
+
+        return DoctorAvailableSlotsResponse.builder()
+                .doctorId(doctorId)
+                .date(date)
+                .availableSlots(availableSlots)
+                .build();
+    }
 }
+

@@ -41,38 +41,49 @@ function DoctorList({ user }) {
     loadDoctors('');
   };
 
+  const getDoctorInitials = (name) => {
+    if (!name) return 'DR';
+    const parts = name.split(' ');
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+  };
+
   const isAdmin = user && user.role === 'ADMIN';
+  const isPatient = user && user.role === 'PATIENT';
 
   return (
-    <div className="card">
-      <div className="flex-between" style={{ marginBottom: '2rem' }}>
-        <div>
-          <h1>Doctor Directory</h1>
-          <p>Find medical specialists and view their availability.</p>
+    <div>
+      {/* PAGE HEADER */}
+      <div className="page-header">
+        <div className="page-title-group">
+          <h1>Medical Specialist Directory</h1>
+          <p>Explore certified healthcare specialists, check consulting hours and book appointments.</p>
         </div>
-        
+
         {isAdmin && (
           <Link to="/doctors/register" className="btn btn-accent">
-            + Register Doctor
+            + Register New Doctor
           </Link>
         )}
       </div>
 
       {errorMessage && <div className="alert alert-danger">⚠️ {errorMessage}</div>}
 
-      {/* Specialization Search Bar */}
-      <form onSubmit={handleSearchSubmit} className="filter-bar">
-        <div className="filter-group" style={{ flex: '1 1 350px' }}>
+      {/* FILTER & SEARCH BAR */}
+      <form onSubmit={handleSearchSubmit} className="filter-bar" style={{ marginBottom: '1.75rem' }}>
+        <div className="filter-group" style={{ flex: '1 1 340px' }}>
           <input
             type="text"
             className="form-control"
-            placeholder="Search by Specialization (e.g. Cardiologist, Pediatrician)..."
+            placeholder="Search by specialization (e.g. Cardiologist, Dermatologist, Pediatrician)..."
             value={specializationQuery}
             onChange={(e) => setSpecializationQuery(e.target.value)}
           />
         </div>
         <button type="submit" disabled={loading} className="btn btn-primary">
-          {loading ? 'Searching...' : 'Search'}
+          {loading ? 'Searching...' : 'Search Specialists'}
         </button>
         {specializationQuery && (
           <button type="button" onClick={handleClearSearch} className="btn btn-secondary">
@@ -81,64 +92,81 @@ function DoctorList({ user }) {
         )}
       </form>
 
-      {/* Doctor Cards Grid */}
+      {/* DOCTORS GRID */}
       {loading ? (
-        <p style={{ textAlign: 'center', padding: '2rem' }}>Retrieving doctor directory...</p>
+        <div className="empty-state-box">
+          <div className="empty-state-icon">⏳</div>
+          <div className="empty-state-title">Retrieving Specialist Directory...</div>
+          <div className="empty-state-desc">Connecting with hospital registry.</div>
+        </div>
       ) : doctors.length === 0 ? (
-        <p style={{ textAlign: 'center', padding: '2rem' }}>No doctors found.</p>
+        <div className="empty-state-box">
+          <div className="empty-state-icon">🩺</div>
+          <div className="empty-state-title">No Specialists Found</div>
+          <div className="empty-state-desc">
+            {specializationQuery 
+              ? `No doctors found matching "${specializationQuery}". Try searching with a different specialty.`
+              : 'No doctors are currently registered in the system.'}
+          </div>
+          {specializationQuery && (
+            <button onClick={handleClearSearch} className="btn btn-secondary" style={{ marginTop: '0.75rem' }}>
+              Reset Search
+            </button>
+          )}
+        </div>
       ) : (
-        <div className="dashboard-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', marginTop: '1.5rem' }}>
+        <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.5rem' }}>
           {doctors.map((d) => (
-            <div key={d.id} className="card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', border: '1px solid var(--panel-border)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
-                  <h3 style={{ fontSize: '1.2rem', color: '#ffffff' }}>Dr. {d.fullName}</h3>
-                  <span className="user-tag" style={{ background: 'var(--primary-glow)', color: 'var(--primary)', marginTop: '0.25rem', display: 'inline-block' }}>
-                    {d.specialization}
-                  </span>
+            <div key={d.id} className="doctor-card">
+              <div className="doctor-card-header">
+                <div className="doctor-avatar-circle">
+                  {getDoctorInitials(d.fullName)}
                 </div>
-                <div style={{ textAlign: 'right' }}>
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Fee</span>
-                  <div style={{ fontSize: '1.15rem', fontWeight: '700', color: 'var(--accent)' }}>
-                    ${d.consultationFee?.toFixed(2)}
-                  </div>
+                <div className="doctor-title-box" style={{ flex: 1 }}>
+                  <h3>Dr. {d.fullName}</h3>
+                  <span className="doctor-spec-pill">{d.specialization}</span>
                 </div>
               </div>
 
-              <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '0.75rem', fontSize: '0.9rem', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <div>
-                  <span style={{ color: 'var(--text-secondary)' }}>Department:</span>{' '}
-                  <strong style={{ color: '#ffffff' }}>{d.departmentName}</strong>
+              <div className="doctor-info-list">
+                <div className="doctor-info-row">
+                  <span className="doctor-info-label">Department:</span>
+                  <span className="doctor-info-val" style={{ color: 'var(--primary-dark)' }}>{d.departmentName}</span>
                 </div>
-                <div>
-                  <span style={{ color: 'var(--text-secondary)' }}>Qualification:</span>{' '}
-                  <span style={{ color: 'var(--text-primary)' }}>{d.qualification}</span>
+                <div className="doctor-info-row">
+                  <span className="doctor-info-label">Qualification:</span>
+                  <span className="doctor-info-val">{d.qualification}</span>
                 </div>
-                <div>
-                  <span style={{ color: 'var(--text-secondary)' }}>Experience:</span>{' '}
-                  <span style={{ color: 'var(--text-primary)' }}>{d.experienceYears} years</span>
+                <div className="doctor-info-row">
+                  <span className="doctor-info-label">Experience:</span>
+                  <span className="doctor-info-val">{d.experienceYears} Years</span>
                 </div>
-                <div>
-                  <span style={{ color: 'var(--text-secondary)' }}>Hours:</span>{' '}
-                  <span style={{ color: 'var(--warning)', fontWeight: '500' }}>
+                <div className="doctor-info-row">
+                  <span className="doctor-info-label">Consultation Hours:</span>
+                  <span className="doctor-info-val" style={{ color: 'var(--primary-dark)' }}>
                     {d.availableFrom?.substring(0, 5)} - {d.availableTo?.substring(0, 5)}
                   </span>
                 </div>
+                <div className="doctor-info-row" style={{ marginTop: '0.25rem', paddingTop: '0.45rem', borderTop: '1px dashed var(--border-subtle)' }}>
+                  <span className="doctor-info-label">Consultation Fee:</span>
+                  <span className="doctor-info-val" style={{ fontSize: '1.1rem', color: 'var(--primary-dark)', fontWeight: 800 }}>
+                    ${d.consultationFee?.toFixed(2)}
+                  </span>
+                </div>
               </div>
 
-              <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '0.75rem', fontSize: '0.85rem', display: 'flex', flexDirection: 'column', gap: '0.25rem', color: 'var(--text-muted)' }}>
-                <div>Email: {d.email}</div>
-                <div>Phone: {d.phoneNumber}</div>
-                <div>Doctor ID: #{d.id}</div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                <div>📧 {d.email}</div>
+                <div>📞 {d.phoneNumber}</div>
               </div>
 
-              {user?.role === 'PATIENT' && (
+              {isPatient && (
                 <Link
                   to={`/appointments/book?doctorId=${d.id}&doctorName=${encodeURIComponent(d.fullName)}`}
                   className="btn btn-primary"
-                  style={{ width: '100%', marginTop: 'auto', padding: '0.5rem' }}
+                  style={{ width: '100%', marginTop: 'auto', padding: '0.6rem' }}
                 >
-                  Book Appointment
+                  📅 Book Appointment
                 </Link>
               )}
             </div>

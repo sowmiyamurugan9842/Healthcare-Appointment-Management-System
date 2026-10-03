@@ -7,6 +7,7 @@ import jakarta.validation.constraints.Size;
 import lombok.*;
 
 import java.time.LocalDate;
+import java.util.List;
 
 /**
  * DTO for carrying data to issue a new medical Prescription.
@@ -24,10 +25,10 @@ public class PrescriptionRequest {
     @NotBlank(message = "Diagnosis is required")
     private String diagnosis;
 
-    @NotBlank(message = "Medications details are required")
+    private String doctorAdvice;
+
     private String medications;
 
-    @NotBlank(message = "Dosage instructions are required")
     private String dosageInstructions;
 
     @Size(max = 1000, message = "Additional notes cannot exceed 1000 characters")
@@ -35,4 +36,12 @@ public class PrescriptionRequest {
 
     @FutureOrPresent(message = "Next visit date must be in the future or present")
     private LocalDate nextVisitDate;
+
+    private LocalDate followUpDate;
+
+    private java.time.LocalTime followUpTime;
+
+    private String followUpNotes;
+
+    private List<PrescriptionMedicineDto> medicines;
 }

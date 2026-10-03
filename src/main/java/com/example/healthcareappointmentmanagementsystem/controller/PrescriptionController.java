@@ -32,10 +32,10 @@ public class PrescriptionController {
     /**
      * Endpoint to create a new prescription.
      * Maps to POST /api/prescriptions.
-     * Access: DOCTOR only.
+     * Access: DOCTOR or ADMIN.
      */
     @PostMapping
-    @PreAuthorize("hasRole('DOCTOR')")
+    @PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
     public ResponseEntity<PrescriptionResponse> createPrescription(@Valid @RequestBody PrescriptionRequest request) {
         PrescriptionResponse response = prescriptionService.createPrescription(request);
         return new ResponseEntity<>(response, HttpStatus.CREATED);
@@ -66,14 +66,38 @@ public class PrescriptionController {
     }
 
     /**
+     * Endpoint to retrieve all prescriptions for a specific patient.
+     * Maps to GET /api/prescriptions/patient/{patientId}.
+     * Access: ADMIN, DOCTOR, PATIENT.
+     */
+    @GetMapping("/patient/{patientId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'DOCTOR', 'PATIENT')")
+    public ResponseEntity<List<PrescriptionResponse>> getPrescriptionsByPatient(@PathVariable Long patientId) {
+        List<PrescriptionResponse> response = prescriptionService.getPrescriptionsByPatient(patientId);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
      * Endpoint to retrieve the prescription associated with a specific appointment.
      * Maps to GET /api/prescriptions/appointment/{appointmentId}.
-     * Access: DOCTOR or PATIENT.
+     * Access: ADMIN, DOCTOR, PATIENT.
      */
     @GetMapping("/appointment/{appointmentId}")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'PATIENT')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'DOCTOR', 'PATIENT')")
     public ResponseEntity<PrescriptionResponse> getPrescriptionByAppointment(@PathVariable Long appointmentId) {
         PrescriptionResponse response = prescriptionService.getPrescriptionByAppointment(appointmentId);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Endpoint to retrieve all prescriptions created by a specific doctor.
+     * Maps to GET /api/prescriptions/doctor/{doctorId}.
+     * Access: ADMIN, DOCTOR.
+     */
+    @GetMapping("/doctor/{doctorId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'DOCTOR')")
+    public ResponseEntity<List<PrescriptionResponse>> getPrescriptionsByDoctor(@PathVariable Long doctorId) {
+        List<PrescriptionResponse> response = prescriptionService.getPrescriptionsByDoctor(doctorId);
         return ResponseEntity.ok(response);
     }
 
@@ -107,10 +131,10 @@ public class PrescriptionController {
     /**
      * Endpoint to update an existing prescription.
      * Maps to PUT /api/prescriptions/{id}.
-     * Access: DOCTOR only.
+     * Access: DOCTOR or ADMIN.
      */
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('DOCTOR')")
+    @PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
     public ResponseEntity<PrescriptionResponse> updatePrescription(
             @PathVariable Long id,
             @Valid @RequestBody PrescriptionRequest request) {
@@ -129,5 +153,60 @@ public class PrescriptionController {
         prescriptionService.deletePrescription(id);
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
-}
 
+    /**
+     * Endpoint to download a signed clinical prescription in PDF format.
+     * Maps to GET /api/prescriptions/{id}/pdf.
+     * Access: PATIENT (own), DOCTOR (own appointment), ADMIN.
+     */
+    @GetMapping(value = "/{id}/pdf", produces = "application/pdf")
+    @PreAuthorize("hasAnyRole('ADMIN', 'DOCTOR', 'PATIENT')")
+    public ResponseEntity<byte[]> getPrescriptionPdf(@PathVariable Long id) {
+        byte[] pdfBytes = prescriptionService.getPrescriptionPdf(id);
+
+        org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+        headers.setContentType(org.springframework.http.MediaType.APPLICATION_PDF);
+        headers.setContentDisposition(org.springframework.http.ContentDisposition.attachment()
+                .filename("prescription_" + id + ".pdf")
+                .build());
+        headers.setCacheControl("no-cache, no-store, must-revalidate");
+
+        return ResponseEntity.ok()
+                .headers(headers)
+                .body(pdfBytes);
+    }
+
+    /**
+     * Endpoint to manually trigger or retry WhatsApp delivery of a prescription PDF.
+     * Maps to POST /api/prescriptions/{id}/send-whatsapp.
+     * Access: DOCTOR (own appointment) or ADMIN.
+     */
+    @PostMapping("/{id}/send-whatsapp")
+    @PreAuthorize("hasAnyRole('ADMIN', 'DOCTOR')")
+    public ResponseEntity<com.example.healthcareappointmentmanagementsystem.dto.response.WhatsAppDeliveryResponse> sendWhatsApp(
+            @PathVariable Long id) {
+        com.example.healthcareappointmentmanagementsystem.dto.response.WhatsAppDeliveryResponse response = prescriptionService.resendWhatsApp(id);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Endpoint to schedule or update follow-up consultation details on a prescription.
+     * Maps to PUT /api/prescriptions/{id}/follow-up.
+     * Access: DOCTOR or ADMIN.
+     */
+    @io.swagger.v3.oas.annotations.Operation(
+            summary = "Schedule or update prescription follow-up",
+            description = "Allows an attending doctor or administrator to set follow-up consultation date, time, and instructions for a prescription."
+    )
+    @PutMapping("/{id}/follow-up")
+    @PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
+    public ResponseEntity<com.example.healthcareappointmentmanagementsystem.dto.response.FollowUpResponse> setPrescriptionFollowUp(
+            @PathVariable Long id,
+            @Valid @RequestBody com.example.healthcareappointmentmanagementsystem.dto.request.FollowUpRequest request,
+            java.security.Principal principal) {
+        String email = principal != null ? principal.getName() : null;
+        com.example.healthcareappointmentmanagementsystem.dto.response.FollowUpResponse response =
+                prescriptionService.setPrescriptionFollowUp(id, request, email);
+        return ResponseEntity.ok(response);
+    }
+}

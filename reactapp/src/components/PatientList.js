@@ -7,7 +7,7 @@ function PatientList({ user }) {
   const [filteredPatients, setFilteredPatients] = useState([]);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  
+
   // Filters state
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGender, setSelectedGender] = useState('ALL');
@@ -32,27 +32,24 @@ function PatientList({ user }) {
     loadPatients();
   }, [loadPatients]);
 
-  // Handle filtering
   useEffect(() => {
     let result = patients;
 
-    // Search filter (by name, email, phone)
     if (searchTerm.trim() !== '') {
       const term = searchTerm.toLowerCase();
       result = result.filter(
         (p) =>
           (p.fullName && p.fullName.toLowerCase().includes(term)) ||
           (p.email && p.email.toLowerCase().includes(term)) ||
-          (p.phoneNumber && p.phoneNumber.includes(term))
+          (p.phoneNumber && p.phoneNumber.includes(term)) ||
+          (String(p.id).includes(term))
       );
     }
 
-    // Gender filter
     if (selectedGender !== 'ALL') {
       result = result.filter((p) => p.gender === selectedGender);
     }
 
-    // Blood Group filter
     if (selectedBloodGroup !== 'ALL') {
       result = result.filter((p) => p.bloodGroup === selectedBloodGroup);
     }
@@ -67,127 +64,161 @@ function PatientList({ user }) {
       <div className="card" style={{ maxWidth: '600px', margin: '4rem auto', textAlign: 'center' }}>
         <h2>Access Denied</h2>
         <p style={{ marginTop: '1rem' }}>Only administrators can access the patient registry directory.</p>
-        <Link to="/" className="btn btn-primary" style={{ marginTop: '1.5rem' }}>Go to Home</Link>
+        <Link to="/" className="btn btn-primary" style={{ marginTop: '1.5rem' }}>Go to Dashboard</Link>
       </div>
     );
   }
 
   return (
-    <div className="card">
-      <div className="flex-between" style={{ marginBottom: '2rem' }}>
-        <div>
-          <h1>Patient Registry</h1>
-          <p>Manage and filter registered patient medical profiles.</p>
+    <div>
+      {/* PAGE HEADER */}
+      <div className="page-header">
+        <div className="page-title-group">
+          <h1>Patient Health Registry</h1>
+          <p>Manage, filter, and audit registered electronic medical records.</p>
         </div>
+
         <div style={{ display: 'flex', gap: '0.75rem' }}>
           <Link to="/patients/register" className="btn btn-accent">
-            + Register Patient
+            + Register New Patient
           </Link>
           <button onClick={loadPatients} disabled={loading} className="btn btn-secondary">
-            {loading ? 'Refreshing...' : 'Refresh'}
+            {loading ? 'Refreshing...' : '↻ Refresh List'}
           </button>
         </div>
       </div>
 
       {errorMessage && <div className="alert alert-danger">⚠️ {errorMessage}</div>}
 
-      {/* Filter Toolbar */}
-      <div className="filter-bar">
-        <div className="filter-group" style={{ flex: '1 1 300px' }}>
-          <input
-            type="text"
-            className="form-control"
-            placeholder="Search by name, email or phone..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-        
-        <div className="filter-group">
-          <label className="form-label" style={{ marginBottom: 0, marginRight: '0.5rem' }} htmlFor="genderFilter">Gender:</label>
-          <select
-            id="genderFilter"
-            className="form-control"
-            style={{ width: 'auto', padding: '0.5rem 1rem' }}
-            value={selectedGender}
-            onChange={(e) => setSelectedGender(e.target.value)}
-          >
-            <option value="ALL">All Genders</option>
-            <option value="MALE">Male</option>
-            <option value="FEMALE">Female</option>
-            <option value="OTHER">Other</option>
-          </select>
+      <div className="card">
+        {/* TOOLBAR FILTERS */}
+        <div className="filter-bar" style={{ justifyContent: 'space-between' }}>
+          <div className="filter-group" style={{ flex: '1 1 280px' }}>
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Search by name, email, phone, or Patient ID..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <div className="filter-group">
+              <label className="form-label" style={{ marginBottom: 0, marginRight: '0.25rem' }} htmlFor="genderFilter">
+                Gender:
+              </label>
+              <select
+                id="genderFilter"
+                className="form-control"
+                style={{ width: 'auto', padding: '0.45rem 0.85rem' }}
+                value={selectedGender}
+                onChange={(e) => setSelectedGender(e.target.value)}
+              >
+                <option value="ALL">All Genders</option>
+                <option value="MALE">Male</option>
+                <option value="FEMALE">Female</option>
+                <option value="OTHER">Other</option>
+              </select>
+            </div>
+
+            <div className="filter-group">
+              <label className="form-label" style={{ marginBottom: 0, marginRight: '0.25rem' }} htmlFor="bloodFilter">
+                Blood Group:
+              </label>
+              <select
+                id="bloodFilter"
+                className="form-control"
+                style={{ width: 'auto', padding: '0.45rem 0.85rem' }}
+                value={selectedBloodGroup}
+                onChange={(e) => setSelectedBloodGroup(e.target.value)}
+              >
+                <option value="ALL">All Blood Groups</option>
+                <option value="A_POSITIVE">A+</option>
+                <option value="A_NEGATIVE">A-</option>
+                <option value="B_POSITIVE">B+</option>
+                <option value="B_NEGATIVE">B-</option>
+                <option value="AB_POSITIVE">AB+</option>
+                <option value="AB_NEGATIVE">AB-</option>
+                <option value="O_POSITIVE">O+</option>
+                <option value="O_NEGATIVE">O-</option>
+              </select>
+            </div>
+          </div>
         </div>
 
-        <div className="filter-group">
-          <label className="form-label" style={{ marginBottom: 0, marginRight: '0.5rem' }} htmlFor="bloodFilter">Blood Group:</label>
-          <select
-            id="bloodFilter"
-            className="form-control"
-            style={{ width: 'auto', padding: '0.5rem 1rem' }}
-            value={selectedBloodGroup}
-            onChange={(e) => setSelectedBloodGroup(e.target.value)}
-          >
-            <option value="ALL">All Groups</option>
-            <option value="A_POSITIVE">A+</option>
-            <option value="A_NEGATIVE">A-</option>
-            <option value="B_POSITIVE">B+</option>
-            <option value="B_NEGATIVE">B-</option>
-            <option value="AB_POSITIVE">AB+</option>
-            <option value="AB_NEGATIVE">AB-</option>
-            <option value="O_POSITIVE">O+</option>
-            <option value="O_NEGATIVE">O-</option>
-          </select>
-        </div>
-      </div>
-
-      {/* Patients List Table */}
-      {loading ? (
-        <p style={{ textAlign: 'center', padding: '2rem' }}>Retrieving patient profiles...</p>
-      ) : filteredPatients.length === 0 ? (
-        <p style={{ textAlign: 'center', padding: '2rem' }}>No patients found matching the criteria.</p>
-      ) : (
-        <div className="table-container">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Patient ID</th>
-                <th>Full Name</th>
-                <th>Email</th>
-                <th>Phone Number</th>
-                <th>DOB</th>
-                <th>Gender</th>
-                <th>Blood</th>
-                <th>Address</th>
-                <th>Emergency Contact</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredPatients.map((p) => (
-                <tr key={p.id}>
-                  <td><strong>#{p.id}</strong></td>
-                  <td style={{ fontWeight: '600', color: '#ffffff' }}>{p.fullName}</td>
-                  <td>{p.email}</td>
-                  <td>{p.phoneNumber}</td>
-                  <td>{p.dateOfBirth}</td>
-                  <td>
-                    <span className="user-tag" style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text-secondary)' }}>
-                      {p.gender}
-                    </span>
-                  </td>
-                  <td>
-                    <span className="user-tag" style={{ background: 'var(--primary-glow)', color: 'var(--primary)' }}>
-                      {p.bloodGroup.replace('_POSITIVE', '+').replace('_NEGATIVE', '-')}
-                    </span>
-                  </td>
-                  <td><div style={{ maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.address}</div></td>
-                  <td style={{ color: 'var(--accent)', fontWeight: '500' }}>{p.emergencyContact}</td>
+        {/* PATIENTS TABLE */}
+        {loading ? (
+          <div className="empty-state-box">
+            <div className="empty-state-icon">⏳</div>
+            <div className="empty-state-title">Retrieving Patient Profiles...</div>
+          </div>
+        ) : filteredPatients.length === 0 ? (
+          <div className="empty-state-box">
+            <div className="empty-state-icon">👥</div>
+            <div className="empty-state-title">No Patient Records Found</div>
+            <div className="empty-state-desc">
+              {searchTerm || selectedGender !== 'ALL' || selectedBloodGroup !== 'ALL'
+                ? 'No patient records match the selected filter criteria.'
+                : 'No patients are currently registered in the hospital registry.'}
+            </div>
+          </div>
+        ) : (
+          <div className="table-container">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Patient ID</th>
+                  <th>Full Name</th>
+                  <th>Email & Phone</th>
+                  <th>DOB</th>
+                  <th>Gender</th>
+                  <th>Blood Group</th>
+                  <th>Emergency Contact</th>
+                  <th>Residential Address</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+              </thead>
+              <tbody>
+                {filteredPatients.map((p) => (
+                  <tr key={p.id}>
+                    <td>
+                      <strong>#{p.id}</strong>
+                    </td>
+                    <td>
+                      <strong style={{ color: 'var(--text-primary)' }}>{p.fullName}</strong>
+                    </td>
+                    <td>
+                      <div style={{ fontSize: '0.85rem' }}>{p.email}</div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{p.phoneNumber}</div>
+                    </td>
+                    <td>{p.dateOfBirth}</td>
+                    <td>
+                      <span className="user-tag" style={{ background: 'var(--bg-surface-subtle)', color: 'var(--text-secondary)' }}>
+                        {p.gender}
+                      </span>
+                    </td>
+                    <td>
+                      <span className="badge badge-completed" style={{ fontSize: '0.75rem' }}>
+                        {p.bloodGroup.replace('_POSITIVE', '+').replace('_NEGATIVE', '-')}
+                      </span>
+                    </td>
+                    <td>
+                      <span style={{ color: 'var(--primary-dark)', fontWeight: 600 }}>
+                        {p.emergencyContact}
+                      </span>
+                    </td>
+                    <td>
+                      <div style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={p.address}>
+                        {p.address}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

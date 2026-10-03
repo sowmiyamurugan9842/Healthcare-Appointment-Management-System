@@ -58,6 +58,33 @@ public class Appointment {
     @Column(name = "status", nullable = false, length = 20)
     private AppointmentStatus status;
 
+    @Column(name = "reminder_sent", nullable = false)
+    @Builder.Default
+    private boolean reminderSent = false;
+
+    @Column(name = "no_show_at")
+    private LocalDateTime noShowAt;
+
+    @Column(name = "no_show_reason", length = 500)
+    private String noShowReason;
+
+    @Column(name = "marked_no_show_by", length = 100)
+    private String markedNoShowBy;
+
+    // Follow-up Consultation Planning
+    @Column(name = "follow_up_date")
+    private LocalDate followUpDate;
+
+    @Column(name = "follow_up_time")
+    private LocalTime followUpTime;
+
+    @Column(name = "follow_up_notes", length = 500)
+    private String followUpNotes;
+
+    @Column(name = "follow_up_reminder_sent", nullable = false)
+    @Builder.Default
+    private boolean followUpReminderSent = false;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

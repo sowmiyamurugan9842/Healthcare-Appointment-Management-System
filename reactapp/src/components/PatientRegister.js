@@ -4,7 +4,7 @@ import { authAPI, patientAPI } from '../services/api';
 
 function PatientRegister() {
   const [useExistingUser, setUseExistingUser] = useState(false);
-  
+
   // User account state
   const [userForm, setUserForm] = useState({
     firstName: '',
@@ -36,24 +36,22 @@ function PatientRegister() {
   const validate = () => {
     const tempErrors = {};
 
-    // Validate Profile fields
     if (!useExistingUser) {
-      // Validate User fields
       if (!userForm.firstName.trim()) tempErrors.firstName = 'First name is required';
       if (!userForm.lastName.trim()) tempErrors.lastName = 'Last name is required';
-      
+
       if (!userForm.email) {
         tempErrors.email = 'Email is required';
       } else if (!/\S+@\S+\.\S+/.test(userForm.email)) {
         tempErrors.email = 'Valid email is required';
       }
-      
+
       if (!userForm.password) {
         tempErrors.password = 'Password is required';
       } else if (userForm.password.length < 6) {
         tempErrors.password = 'Password must be at least 6 characters';
       }
-      
+
       const digitsOnly = userForm.phoneNumber.replace(/\D/g, '');
       if (!userForm.phoneNumber) {
         tempErrors.phoneNumber = 'Phone number is required';
@@ -66,7 +64,6 @@ function PatientRegister() {
       }
     }
 
-    // Validate DOB (must be in the past)
     if (!profileForm.dateOfBirth) {
       tempErrors.dateOfBirth = 'Date of birth is required';
     } else {
@@ -110,7 +107,6 @@ function PatientRegister() {
     try {
       let finalUserId = profileForm.userId;
 
-      // Step 1: Register user first if not linking existing
       if (!useExistingUser) {
         const userDigitsPhone = userForm.phoneNumber.replace(/\D/g, '');
         const userRes = await authAPI.register({
@@ -120,7 +116,6 @@ function PatientRegister() {
         finalUserId = userRes.id;
       }
 
-      // Step 2: Create Patient Profile
       await patientAPI.create({
         userId: finalUserId,
         dateOfBirth: profileForm.dateOfBirth,
@@ -132,7 +127,7 @@ function PatientRegister() {
         medicalHistory: profileForm.medicalHistory
       });
 
-      setSuccessMessage('Patient profile created successfully!');
+      setSuccessMessage('Patient medical profile registered successfully!');
       setTimeout(() => {
         navigate('/patients');
       }, 1500);
@@ -146,248 +141,263 @@ function PatientRegister() {
   };
 
   return (
-    <div style={{ maxWidth: '650px', margin: '1rem auto' }} className="card">
-      <h2 className="form-title">Patient Profile Registration</h2>
+    <div style={{ maxWidth: '750px', margin: '0 auto' }}>
+      <div className="page-header">
+        <div className="page-title-group">
+          <h1>Register Patient Profile</h1>
+          <p>Create electronic health records, emergency contacts, and medical history profiles.</p>
+        </div>
+      </div>
 
       {errorMessage && <div className="alert alert-danger">⚠️ {errorMessage}</div>}
       {successMessage && <div className="alert alert-success">✓ {successMessage}</div>}
 
-      <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', justifyContent: 'center' }}>
-        <button
-          type="button"
-          onClick={() => setUseExistingUser(false)}
-          className={`btn ${!useExistingUser ? 'btn-primary' : 'btn-secondary'}`}
-          style={{ padding: '0.4rem 1rem' }}
-        >
-          New Patient User
-        </button>
-        <button
-          type="button"
-          onClick={() => setUseExistingUser(true)}
-          className={`btn ${useExistingUser ? 'btn-primary' : 'btn-secondary'}`}
-          style={{ padding: '0.4rem 1rem' }}
-        >
-          Link Existing User ID
-        </button>
-      </div>
-
-      <form onSubmit={handleSubmit}>
-        {/* User details section */}
-        {!useExistingUser ? (
-          <div>
-            <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', borderBottom: '1px solid var(--panel-border)', paddingBottom: '0.5rem' }}>
-              1. User Account Credentials
-            </h3>
-            <div className="form-control-row">
-              <div className="form-group">
-                <label className="form-label" htmlFor="firstName">First Name</label>
-                <input
-                  id="firstName"
-                  name="firstName"
-                  type="text"
-                  className="form-control"
-                  placeholder="e.g. John"
-                  value={userForm.firstName}
-                  onChange={handleUserChange}
-                />
-                {errors.firstName && <span className="form-error-msg">{errors.firstName}</span>}
-              </div>
-
-              <div className="form-group">
-                <label className="form-label" htmlFor="lastName">Last Name</label>
-                <input
-                  id="lastName"
-                  name="lastName"
-                  type="text"
-                  className="form-control"
-                  placeholder="e.g. Doe"
-                  value={userForm.lastName}
-                  onChange={handleUserChange}
-                />
-                {errors.lastName && <span className="form-error-msg">{errors.lastName}</span>}
-              </div>
-            </div>
-
-            <div className="form-control-row">
-              <div className="form-group">
-                <label className="form-label" htmlFor="email">Email Address</label>
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  className="form-control"
-                  placeholder="e.g. john@example.com"
-                  value={userForm.email}
-                  onChange={handleUserChange}
-                />
-                {errors.email && <span className="form-error-msg">{errors.email}</span>}
-              </div>
-
-              <div className="form-group">
-                <label className="form-label" htmlFor="password">Account Password</label>
-                <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  className="form-control"
-                  placeholder="Min 6 characters"
-                  value={userForm.password}
-                  onChange={handleUserChange}
-                />
-                {errors.password && <span className="form-error-msg">{errors.password}</span>}
-              </div>
-            </div>
-
-            <div className="form-group">
-              <label className="form-label" htmlFor="phoneNumber">Phone Number (10 digits)</label>
-              <input
-                id="phoneNumber"
-                name="phoneNumber"
-                type="tel"
-                className="form-control"
-                placeholder="e.g. 9876543210"
-                value={userForm.phoneNumber}
-                onChange={handleUserChange}
-              />
-              {errors.phoneNumber && <span className="form-error-msg">{errors.phoneNumber}</span>}
-            </div>
-          </div>
-        ) : (
-          <div className="form-group">
-            <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', borderBottom: '1px solid var(--panel-border)', paddingBottom: '0.5rem' }}>
-              1. Associated User ID
-            </h3>
-            <label className="form-label" htmlFor="userId">User ID Reference</label>
-            <input
-              id="userId"
-              name="userId"
-              type="number"
-              className="form-control"
-              placeholder="e.g. 5"
-              value={profileForm.userId}
-              onChange={handleProfileChange}
-            />
-            {errors.userId && <span className="form-error-msg">{errors.userId}</span>}
-          </div>
-        )}
-
-        {/* Medical details section */}
-        <div>
-          <h3 style={{ fontSize: '1.1rem', marginTop: '1.5rem', marginBottom: '1rem', borderBottom: '1px solid var(--panel-border)', paddingBottom: '0.5rem' }}>
-            2. Medical Profile Details
-          </h3>
-          
-          <div className="form-control-row">
-            <div className="form-group">
-              <label className="form-label" htmlFor="dateOfBirth">Date of Birth</label>
-              <input
-                id="dateOfBirth"
-                name="dateOfBirth"
-                type="date"
-                className="form-control"
-                value={profileForm.dateOfBirth}
-                onChange={handleProfileChange}
-              />
-              {errors.dateOfBirth && <span className="form-error-msg">{errors.dateOfBirth}</span>}
-            </div>
-
-            <div className="form-group">
-              <label className="form-label" htmlFor="gender">Gender</label>
-              <select
-                id="gender"
-                name="gender"
-                className="form-control"
-                value={profileForm.gender}
-                onChange={handleProfileChange}
-              >
-                <option value="MALE">Male</option>
-                <option value="FEMALE">Female</option>
-                <option value="OTHER">Other</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="form-control-row">
-            <div className="form-group">
-              <label className="form-label" htmlFor="bloodGroup">Blood Group</label>
-              <select
-                id="bloodGroup"
-                name="bloodGroup"
-                className="form-control"
-                value={profileForm.bloodGroup}
-                onChange={handleProfileChange}
-              >
-                <option value="A_POSITIVE">A+</option>
-                <option value="A_NEGATIVE">A-</option>
-                <option value="B_POSITIVE">B+</option>
-                <option value="B_NEGATIVE">B-</option>
-                <option value="AB_POSITIVE">AB+</option>
-                <option value="AB_NEGATIVE">AB-</option>
-                <option value="O_POSITIVE">O+</option>
-                <option value="O_NEGATIVE">O-</option>
-              </select>
-            </div>
-
-            <div className="form-group">
-              <label className="form-label" htmlFor="emergencyContact">Emergency Contact (Phone)</label>
-              <input
-                id="emergencyContact"
-                name="emergencyContact"
-                type="tel"
-                className="form-control"
-                placeholder="Emergency phone number"
-                value={profileForm.emergencyContact}
-                onChange={handleProfileChange}
-              />
-              {errors.emergencyContact && <span className="form-error-msg">{errors.emergencyContact}</span>}
-            </div>
-          </div>
-
-          <div className="form-group">
-            <label className="form-label" htmlFor="address">Permanent Address</label>
-            <input
-              id="address"
-              name="address"
-              type="text"
-              className="form-control"
-              placeholder="e.g. 123 Main St, Springfield"
-              value={profileForm.address}
-              onChange={handleProfileChange}
-            />
-            {errors.address && <span className="form-error-msg">{errors.address}</span>}
-          </div>
-
-          <div className="form-group">
-            <label className="form-label" htmlFor="allergies">Allergies (Optional)</label>
-            <textarea
-              id="allergies"
-              name="allergies"
-              rows="2"
-              className="form-control"
-              placeholder="e.g. Penicillin, Peanuts (leave blank if none)"
-              value={profileForm.allergies}
-              onChange={handleProfileChange}
-            />
-          </div>
-
-          <div className="form-group">
-            <label className="form-label" htmlFor="medicalHistory">Medical History Summary (Optional)</label>
-            <textarea
-              id="medicalHistory"
-              name="medicalHistory"
-              rows="3"
-              className="form-control"
-              placeholder="e.g. Hypertension, Diabetes, prior operations..."
-              value={profileForm.medicalHistory}
-              onChange={handleProfileChange}
-            />
-          </div>
+      <div className="card">
+        {/* MODE TOGGLE */}
+        <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.75rem', justifyContent: 'center' }}>
+          <button
+            type="button"
+            onClick={() => setUseExistingUser(false)}
+            className={`btn ${!useExistingUser ? 'btn-primary' : 'btn-secondary'}`}
+            style={{ padding: '0.45rem 1.25rem' }}
+          >
+            Create New Patient User
+          </button>
+          <button
+            type="button"
+            onClick={() => setUseExistingUser(true)}
+            className={`btn ${useExistingUser ? 'btn-primary' : 'btn-secondary'}`}
+            style={{ padding: '0.45rem 1.25rem' }}
+          >
+            Link Existing User ID
+          </button>
         </div>
 
-        <button type="submit" disabled={loading} className="btn btn-accent" style={{ width: '100%', marginTop: '1rem' }}>
-          {loading ? 'Processing Registration...' : 'Register Patient'}
-        </button>
-      </form>
+        <form onSubmit={handleSubmit}>
+          {/* USER ACCOUNT CREDENTIALS */}
+          {!useExistingUser ? (
+            <div style={{ marginBottom: '1.75rem' }}>
+              <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: 'var(--primary-dark)', paddingBottom: '0.4rem', borderBottom: '1px solid var(--border-subtle)' }}>
+                1. Account Credentials & Contact
+              </h3>
+
+              <div className="form-control-row">
+                <div className="form-group">
+                  <label className="form-label" htmlFor="firstName">First Name *</label>
+                  <input
+                    id="firstName"
+                    name="firstName"
+                    type="text"
+                    className="form-control"
+                    placeholder="e.g. Alex"
+                    value={userForm.firstName}
+                    onChange={handleUserChange}
+                  />
+                  {errors.firstName && <span className="form-error-msg">{errors.firstName}</span>}
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label" htmlFor="lastName">Last Name *</label>
+                  <input
+                    id="lastName"
+                    name="lastName"
+                    type="text"
+                    className="form-control"
+                    placeholder="e.g. Taylor"
+                    value={userForm.lastName}
+                    onChange={handleUserChange}
+                  />
+                  {errors.lastName && <span className="form-error-msg">{errors.lastName}</span>}
+                </div>
+              </div>
+
+              <div className="form-control-row">
+                <div className="form-group">
+                  <label className="form-label" htmlFor="email">Email Address *</label>
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    className="form-control"
+                    placeholder="e.g. alex.taylor@example.com"
+                    value={userForm.email}
+                    onChange={handleUserChange}
+                  />
+                  {errors.email && <span className="form-error-msg">{errors.email}</span>}
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label" htmlFor="password">Initial Password *</label>
+                  <input
+                    id="password"
+                    name="password"
+                    type="password"
+                    className="form-control"
+                    placeholder="Min 6 characters"
+                    value={userForm.password}
+                    onChange={handleUserChange}
+                  />
+                  {errors.password && <span className="form-error-msg">{errors.password}</span>}
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" htmlFor="phoneNumber">Phone Number (10 digits) *</label>
+                <input
+                  id="phoneNumber"
+                  name="phoneNumber"
+                  type="tel"
+                  className="form-control"
+                  placeholder="9876543210"
+                  value={userForm.phoneNumber}
+                  onChange={handleUserChange}
+                />
+                {errors.phoneNumber && <span className="form-error-msg">{errors.phoneNumber}</span>}
+              </div>
+            </div>
+          ) : (
+            <div className="form-group" style={{ marginBottom: '1.75rem' }}>
+              <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: 'var(--primary-dark)', paddingBottom: '0.4rem', borderBottom: '1px solid var(--border-subtle)' }}>
+                1. Associated User Record
+              </h3>
+              <label className="form-label" htmlFor="userId">User ID Reference *</label>
+              <input
+                id="userId"
+                name="userId"
+                type="number"
+                className="form-control"
+                placeholder="e.g. 5"
+                value={profileForm.userId}
+                onChange={handleProfileChange}
+              />
+              {errors.userId && <span className="form-error-msg">{errors.userId}</span>}
+            </div>
+          )}
+
+          {/* MEDICAL PROFILE DETAILS */}
+          <div>
+            <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: 'var(--primary-dark)', paddingBottom: '0.4rem', borderBottom: '1px solid var(--border-subtle)' }}>
+              2. Medical Profile & Health History
+            </h3>
+
+            <div className="form-control-row">
+              <div className="form-group">
+                <label className="form-label" htmlFor="dateOfBirth">Date of Birth *</label>
+                <input
+                  id="dateOfBirth"
+                  name="dateOfBirth"
+                  type="date"
+                  className="form-control"
+                  max={new Date().toISOString().split('T')[0]}
+                  value={profileForm.dateOfBirth}
+                  onChange={handleProfileChange}
+                />
+                {errors.dateOfBirth && <span className="form-error-msg">{errors.dateOfBirth}</span>}
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" htmlFor="gender">Gender *</label>
+                <select
+                  id="gender"
+                  name="gender"
+                  className="form-control"
+                  value={profileForm.gender}
+                  onChange={handleProfileChange}
+                >
+                  <option value="MALE">Male</option>
+                  <option value="FEMALE">Female</option>
+                  <option value="OTHER">Other</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="form-control-row">
+              <div className="form-group">
+                <label className="form-label" htmlFor="bloodGroup">Blood Group *</label>
+                <select
+                  id="bloodGroup"
+                  name="bloodGroup"
+                  className="form-control"
+                  value={profileForm.bloodGroup}
+                  onChange={handleProfileChange}
+                >
+                  <option value="A_POSITIVE">A+ (A Positive)</option>
+                  <option value="A_NEGATIVE">A- (A Negative)</option>
+                  <option value="B_POSITIVE">B+ (B Positive)</option>
+                  <option value="B_NEGATIVE">B- (B Negative)</option>
+                  <option value="AB_POSITIVE">AB+ (AB Positive)</option>
+                  <option value="AB_NEGATIVE">AB- (AB Negative)</option>
+                  <option value="O_POSITIVE">O+ (O Positive)</option>
+                  <option value="O_NEGATIVE">O- (O Negative)</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" htmlFor="emergencyContact">Emergency Contact (Phone) *</label>
+                <input
+                  id="emergencyContact"
+                  name="emergencyContact"
+                  type="tel"
+                  className="form-control"
+                  placeholder="e.g. 9876543210"
+                  value={profileForm.emergencyContact}
+                  onChange={handleProfileChange}
+                />
+                {errors.emergencyContact && <span className="form-error-msg">{errors.emergencyContact}</span>}
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" htmlFor="address">Permanent Residential Address *</label>
+              <input
+                id="address"
+                name="address"
+                type="text"
+                className="form-control"
+                placeholder="e.g. 452 Medical Center Blvd, Suite 100"
+                value={profileForm.address}
+                onChange={handleProfileChange}
+              />
+              {errors.address && <span className="form-error-msg">{errors.address}</span>}
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" htmlFor="allergies">Known Allergies (Optional)</label>
+              <textarea
+                id="allergies"
+                name="allergies"
+                rows="2"
+                className="form-control"
+                placeholder="e.g. Penicillin, Peanuts, Latex, Aspirin..."
+                value={profileForm.allergies}
+                onChange={handleProfileChange}
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" htmlFor="medicalHistory">Prior Medical Conditions & History (Optional)</label>
+              <textarea
+                id="medicalHistory"
+                name="medicalHistory"
+                rows="2"
+                className="form-control"
+                placeholder="e.g. Hypertension, Asthma, Prior surgeries..."
+                value={profileForm.medicalHistory}
+                onChange={handleProfileChange}
+              />
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="btn btn-primary"
+            style={{ width: '100%', padding: '0.8rem', fontSize: '1rem', marginTop: '1rem' }}
+          >
+            {loading ? 'Processing Registration...' : '✓ Complete Patient Registration'}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

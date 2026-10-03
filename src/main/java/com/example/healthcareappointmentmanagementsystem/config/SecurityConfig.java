@@ -102,14 +102,18 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.DELETE, "/api/doctors/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/patients/**").hasRole("ADMIN")
 
-                        // Authenticated endpoints (Doctors, Patients, Appointments, Prescriptions CRUD)
+                        // Authenticated endpoints (Doctors, Patients, Appointments, Prescriptions, Notifications, Chatbot, Waitlist)
                         .requestMatchers("/api/doctors/**").authenticated()
                         .requestMatchers("/api/patients/**").authenticated()
                         .requestMatchers("/api/appointments/**").authenticated()
                         .requestMatchers("/api/prescriptions/**").authenticated()
+                        .requestMatchers("/api/notifications/**").authenticated()
+                        .requestMatchers("/api/chatbot/**").authenticated()
+                        .requestMatchers("/api/waitlist/**").authenticated()
 
                         // Fallback catch-all authentication rule
                         .anyRequest().authenticated());
+
 
         return http.build();
     }

@@ -1,14 +1,17 @@
 package com.example.healthcareappointmentmanagementsystem.controller;
 
 import com.example.healthcareappointmentmanagementsystem.dto.request.DoctorRequest;
+import com.example.healthcareappointmentmanagementsystem.dto.response.DoctorAvailableSlotsResponse;
 import com.example.healthcareappointmentmanagementsystem.dto.response.DoctorResponse;
 import com.example.healthcareappointmentmanagementsystem.service.DoctorService;
 import jakarta.validation.Valid;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -17,6 +20,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/doctors")
 public class DoctorController {
+
 
     private final DoctorService doctorService;
 
@@ -62,6 +66,21 @@ public class DoctorController {
         DoctorResponse response = doctorService.getDoctorById(id);
         return ResponseEntity.ok(response);
     }
+
+    /**
+     * Endpoint to retrieve available appointment slots for a doctor on a specific date.
+     * Maps to GET /api/doctors/{doctorId}/available-slots?date=YYYY-MM-DD.
+     * Access: ADMIN, DOCTOR, PATIENT.
+     */
+    @GetMapping("/{doctorId}/available-slots")
+    @PreAuthorize("hasAnyRole('ADMIN', 'DOCTOR', 'PATIENT')")
+    public ResponseEntity<DoctorAvailableSlotsResponse> getAvailableSlots(
+            @PathVariable Long doctorId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        DoctorAvailableSlotsResponse response = doctorService.getAvailableSlots(doctorId, date);
+        return ResponseEntity.ok(response);
+    }
+
 
     /**
      * Endpoint to retrieve doctors by department.

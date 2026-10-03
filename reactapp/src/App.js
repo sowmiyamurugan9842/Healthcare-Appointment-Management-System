@@ -12,6 +12,10 @@ import DoctorList from './components/DoctorList';
 import BookAppointment from './components/BookAppointment';
 import AppointmentList from './components/AppointmentList';
 import PatientAppointmentView from './components/PatientAppointmentView';
+import PatientPrescriptions from './components/PatientPrescriptions';
+import DoctorPrescriptions from './components/DoctorPrescriptions';
+import AIChatbot from './components/AIChatbot';
+
 
 function App() {
   const [user, setUser] = useState(null);
@@ -155,13 +159,37 @@ function App() {
               } 
             />
 
+            {/* Patient & Admin Prescriptions */}
+            <Route 
+              path="/patient-prescriptions" 
+              element={
+                <RoleRoute allowedRoles={['ADMIN', 'PATIENT']}>
+                  <PatientPrescriptions user={user} />
+                </RoleRoute>
+              } 
+            />
+
+            {/* Doctor Prescriptions Workflow */}
+            <Route 
+              path="/doctor-prescriptions" 
+              element={
+                <RoleRoute allowedRoles={['ADMIN', 'DOCTOR']}>
+                  <DoctorPrescriptions user={user} />
+                </RoleRoute>
+              } 
+            />
+
             {/* Catch all */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
+
+        {/* CAREPORTAL AI ASSISTANT CHATBOT */}
+        <AIChatbot user={user} />
       </div>
     </Router>
   );
 }
 
 export default App;
+

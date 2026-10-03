@@ -114,6 +114,18 @@ public class AppointmentController {
     }
 
     /**
+     * Endpoint to confirm all pending appointments for a specific doctor.
+     * Maps to PUT /api/appointments/doctor/{doctorId}/confirm-all.
+     * Access: DOCTOR only.
+     */
+    @PutMapping("/doctor/{doctorId}/confirm-all")
+    @PreAuthorize("hasRole('DOCTOR')")
+    public ResponseEntity<List<AppointmentResponse>> confirmAllAppointmentsByDoctor(@PathVariable Long doctorId) {
+        List<AppointmentResponse> response = appointmentService.confirmAllAppointmentsByDoctor(doctorId);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
      * Endpoint to cancel an appointment.
      * Maps to PUT /api/appointments/{id}/cancel.
      * Access: DOCTOR or PATIENT.
@@ -148,6 +160,91 @@ public class AppointmentController {
             @PathVariable Long id,
             @Valid @RequestBody AppointmentStatusRequest request) {
         AppointmentResponse response = appointmentService.updateAppointmentStatus(id, request.getStatus());
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Endpoint to mark an appointment as NO_SHOW.
+     * Maps to PUT /api/appointments/{id}/no-show and PATCH /api/appointments/{id}/no-show.
+     * Access: DOCTOR or ADMIN.
+     */
+    @PutMapping("/{id}/no-show")
+    @PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
+    public ResponseEntity<AppointmentResponse> markAppointmentAsNoShow(
+            @PathVariable Long id,
+            @RequestBody(required = false) com.example.healthcareappointmentmanagementsystem.dto.request.NoShowRequest request) {
+        String reason = request != null ? request.getReason() : null;
+        AppointmentResponse response = appointmentService.markAppointmentAsNoShow(id, reason);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Endpoint to retrieve aggregate no-show count statistics.
+     * Maps to GET /api/appointments/no-show/count.
+     * Access: ADMIN, DOCTOR, PATIENT.
+     */
+    @GetMapping("/no-show/count")
+    @PreAuthorize("hasAnyRole('ADMIN', 'DOCTOR', 'PATIENT')")
+    public ResponseEntity<com.example.healthcareappointmentmanagementsystem.dto.response.NoShowCountResponse> getNoShowCount(
+            @RequestParam(required = false) Long doctorId,
+            @RequestParam(required = false) Long patientId,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate startDate,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate endDate) {
+        long count = appointmentService.getNoShowCount(doctorId, patientId, startDate, endDate);
+        return ResponseEntity.ok(com.example.healthcareappointmentmanagementsystem.dto.response.NoShowCountResponse.builder()
+                .totalNoShows(count)
+                .doctorId(doctorId)
+                .patientId(patientId)
+                .startDate(startDate)
+                .endDate(endDate)
+                .build());
+    }
+
+    /**
+     * Endpoint to schedule or update a follow-up consultation for an appointment.
+     * Maps to PUT /api/appointments/{id}/follow-up.
+     * Access: DOCTOR or ADMIN.
+     */
+    @io.swagger.v3.oas.annotations.Operation(
+            summary = "Schedule or update follow-up consultation",
+            description = "Allows an attending doctor or administrator to set follow-up consultation date, time, and instructions for an appointment."
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Follow-up successfully scheduled"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Validation error or invalid follow-up date"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Unauthenticated"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Unauthorized caller"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Appointment not found")
+    })
+    @PutMapping("/{id}/follow-up")
+    @PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
+    public ResponseEntity<com.example.healthcareappointmentmanagementsystem.dto.response.FollowUpResponse> setAppointmentFollowUp(
+            @PathVariable Long id,
+            @Valid @RequestBody com.example.healthcareappointmentmanagementsystem.dto.request.FollowUpRequest request,
+            java.security.Principal principal) {
+        String email = principal != null ? principal.getName() : null;
+        com.example.healthcareappointmentmanagementsystem.dto.response.FollowUpResponse response =
+                appointmentService.setAppointmentFollowUp(id, request, email);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Endpoint to retrieve follow-up consultation details for an appointment.
+     * Maps to GET /api/appointments/{id}/follow-up.
+     * Access: DOCTOR, ADMIN, or PATIENT.
+     */
+    @io.swagger.v3.oas.annotations.Operation(
+            summary = "Get follow-up consultation details",
+            description = "Retrieves follow-up date, time, notes, and reminder status for a specific appointment."
+    )
+    @GetMapping("/{id}/follow-up")
+    @PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN', 'PATIENT')")
+    public ResponseEntity<com.example.healthcareappointmentmanagementsystem.dto.response.FollowUpResponse> getAppointmentFollowUp(
+            @PathVariable Long id,
+            java.security.Principal principal) {
+        String email = principal != null ? principal.getName() : null;
+        com.example.healthcareappointmentmanagementsystem.dto.response.FollowUpResponse response =
+                appointmentService.getAppointmentFollowUp(id, email);
         return ResponseEntity.ok(response);
     }
 
