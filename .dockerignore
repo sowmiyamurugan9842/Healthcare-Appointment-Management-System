@@ -1,0 +1,9 @@
+.git
+.gitignore
+.vscode
+target
+reactapp
+coverage
+scratch
+*.md
+.env*
