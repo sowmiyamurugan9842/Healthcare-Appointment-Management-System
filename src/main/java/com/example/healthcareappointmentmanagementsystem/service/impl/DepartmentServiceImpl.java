@@ -50,7 +50,7 @@ public class DepartmentServiceImpl implements DepartmentService {
 
     @Override
     public List<DepartmentResponse> getAllDepartments() {
-        // 1. Fetch all departments from MySQL
+        // 1. Fetch all departments from database
         List<Department> departments = departmentRepository.findAll();
 
         // 2. Map the list of entities into a list of Response DTOs using Java Streams

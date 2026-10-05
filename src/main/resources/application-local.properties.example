@@ -4,11 +4,16 @@
 # (application-local.properties is ignored by .gitignore)
 # ===================================================================
 
-# Local Database Configuration
-SPRING_DATASOURCE_URL=jdbc:mysql://localhost:3306/healthcare_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-SPRING_DATASOURCE_USERNAME=your_local_db_user
-SPRING_DATASOURCE_PASSWORD=your_local_db_password
+# Local Database Configuration (PostgreSQL)
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=healthcare_db
+DB_USERNAME=postgres
+DB_PASSWORD=
 
 # Local JWT Secret (Base64 encoded 256-bit string)
 JWT_SECRET=your_local_development_jwt_secret_key_base64_encoded
 JWT_EXPIRATION=86400000
+
+# Local Frontend URL for CORS
+FRONTEND_URL=http://localhost:8081

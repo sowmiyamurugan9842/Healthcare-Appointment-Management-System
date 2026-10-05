@@ -44,6 +44,10 @@ application-secrets.properties
 **/application-dev.properties
 **/application-secrets.properties
 
+### Scratch & Temporary Files ###
+scratch/
+**/scratch/
+
 ### OS Files ###
 .DS_Store
 Thumbs.db

@@ -2,6 +2,7 @@ package com.example.healthcareappointmentmanagementsystem.config;
 
 import com.example.healthcareappointmentmanagementsystem.security.CustomUserDetailsService;
 import com.example.healthcareappointmentmanagementsystem.security.JwtAuthenticationFilter;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -18,6 +19,8 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -31,6 +34,9 @@ public class SecurityConfig {
     private final CustomUserDetailsService customUserDetailsService;
     private final PasswordEncoder passwordEncoder;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    @Value("${app.cors.frontend-url:${FRONTEND_URL:}}")
+    private String frontendUrl;
 
     /**
      * Constructor injection. Spring Boot automatically injects config dependencies.
@@ -120,22 +126,35 @@ public class SecurityConfig {
 
     /**
      * Central CORS configuration bean.
+     * Allows local development origins and dynamic FRONTEND_URL (e.g. Vercel deployment),
+     * and supports all Vercel and Railway origin patterns.
      */
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of(
+        List<String> allowedOrigins = new ArrayList<>(List.of(
                 "http://localhost:8081",
                 "http://localhost:8083",
                 "http://localhost:3000",
                 "http://localhost:5173",
                 "http://127.0.0.1:8081",
                 "http://127.0.0.1:8083",
-                "http://127.0.0.1:3000",
-                "https://careportal-khaki.vercel.app"
+                "http://127.0.0.1:3000"
         ));
+
+        if (frontendUrl != null && !frontendUrl.trim().isEmpty()) {
+            for (String origin : frontendUrl.split(",")) {
+                String trimmed = origin.trim();
+                if (!trimmed.isEmpty() && !allowedOrigins.contains(trimmed)) {
+                    allowedOrigins.add(trimmed);
+                }
+            }
+        }
+
+        configuration.setAllowedOrigins(allowedOrigins);
         configuration.setAllowedOriginPatterns(List.of(
-                "https://*.vercel.app"
+                "https://*.vercel.app",
+                "https://*.railway.app"
         ));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "X-Requested-With", "Origin"));

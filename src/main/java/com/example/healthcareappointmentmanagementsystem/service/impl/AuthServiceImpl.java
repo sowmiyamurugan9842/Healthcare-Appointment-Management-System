@@ -62,7 +62,7 @@ public class AuthServiceImpl implements AuthService {
         // 3. Encrypt the raw plaintext password before saving to the database
         user.setPassword(passwordEncoder.encode(request.getPassword()));
 
-        // 4. Save the user entity to the MySQL database
+        // 4. Save the user entity to the database
         User savedUser = userRepository.save(user);
 
         // 5. Convert the saved entity back to a lightweight UserResponse DTO

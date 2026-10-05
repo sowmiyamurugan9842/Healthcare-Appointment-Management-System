@@ -12,7 +12,7 @@ import java.util.Collections;
 
 /**
  * Custom implementation of Spring Security's UserDetailsService interface.
- * Bridges Spring Security's authentication manager with our MySQL database.
+ * Bridges Spring Security's authentication manager with our database.
  */
 @Service
 public class CustomUserDetailsService implements UserDetailsService {
