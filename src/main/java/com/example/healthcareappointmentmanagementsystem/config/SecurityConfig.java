@@ -154,7 +154,8 @@ public class SecurityConfig {
         configuration.setAllowedOrigins(allowedOrigins);
         configuration.setAllowedOriginPatterns(List.of(
                 "https://*.vercel.app",
-                "https://*.railway.app"
+                "https://*.railway.app",
+                "https://*.onrender.com"
         ));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "X-Requested-With", "Origin"));
