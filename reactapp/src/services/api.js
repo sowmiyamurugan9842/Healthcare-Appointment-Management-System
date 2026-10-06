@@ -21,9 +21,14 @@ api.interceptors.request.use(
 );
 
 export const authAPI = {
-  login: async (email, password) => {
+  login: async (identifier, password) => {
     // POST /api/auth/login returns JWT token string directly
-    const response = await api.post('/api/auth/login', { email, password });
+    const strId = typeof identifier === 'string' ? identifier.trim() : String(identifier);
+    const payload = { email: strId, password };
+    if (/^\d+$/.test(strId)) {
+      payload.userId = Number(strId);
+    }
+    const response = await api.post('/api/auth/login', payload);
     return response.data;
   },
   register: async (userData) => {
@@ -56,6 +61,10 @@ export const patientAPI = {
   getById: async (id) => {
     const response = await api.get(`/api/patients/${id}`);
     return response.data;
+  },
+  getMe: async () => {
+    const response = await api.get('/api/patients/me');
+    return response.data;
   }
 };
 
@@ -66,6 +75,14 @@ export const doctorAPI = {
   },
   getAll: async () => {
     const response = await api.get('/api/doctors');
+    return response.data;
+  },
+  getById: async (id) => {
+    const response = await api.get(`/api/doctors/${id}`);
+    return response.data;
+  },
+  getMe: async () => {
+    const response = await api.get('/api/doctors/me');
     return response.data;
   },
   searchBySpecialization: async (specialization) => {
@@ -98,6 +115,14 @@ export const appointmentAPI = {
   },
   getByDoctor: async (doctorId) => {
     const response = await api.get(`/api/appointments/doctor/${doctorId}`);
+    return response.data;
+  },
+  getMyDoctorAppointments: async () => {
+    const response = await api.get('/api/appointments/doctor/me');
+    return response.data;
+  },
+  getMyPatientAppointments: async () => {
+    const response = await api.get('/api/appointments/patient/me');
     return response.data;
   },
   // Update status with fallback handling for PATCH status
@@ -139,12 +164,18 @@ export const appointmentAPI = {
   },
   confirmAll: async (doctorId) => {
     try {
-      const response = await api.put(`/api/appointments/doctor/${doctorId}/confirm-all`);
+      const response = doctorId
+        ? await api.put(`/api/appointments/doctor/${doctorId}/confirm-all`)
+        : await api.put(`/api/appointments/doctor/me/confirm-all`);
       return response.data;
     } catch (error) {
       // Fallback: If confirm-all endpoint fails, caller will fall back to individual updates
       throw error;
     }
+  },
+  confirmAllMy: async () => {
+    const response = await api.put('/api/appointments/doctor/me/confirm-all');
+    return response.data;
   },
   setFollowUp: async (appointmentId, followUpData) => {
     const response = await api.put(`/api/appointments/${appointmentId}/follow-up`, followUpData);
@@ -173,8 +204,16 @@ export const prescriptionAPI = {
     const response = await api.get(`/api/prescriptions/patient/${patientId}`);
     return response.data;
   },
+  getMyPatientPrescriptions: async () => {
+    const response = await api.get('/api/prescriptions/patient/me');
+    return response.data;
+  },
   getByDoctor: async (doctorId) => {
     const response = await api.get(`/api/prescriptions/doctor/${doctorId}`);
+    return response.data;
+  },
+  getMyDoctorPrescriptions: async () => {
+    const response = await api.get('/api/prescriptions/doctor/me');
     return response.data;
   },
   getAll: async () => {
@@ -207,6 +246,18 @@ export const prescriptionAPI = {
 };
 
 export const notificationAPI = {
+  getMyNotifications: async () => {
+    const response = await api.get('/api/notifications/me');
+    return response.data;
+  },
+  getMyUnreadCount: async () => {
+    const response = await api.get('/api/notifications/me/unread-count');
+    return response.data;
+  },
+  markAllMyAsRead: async () => {
+    const response = await api.put('/api/notifications/me/read-all');
+    return response.data;
+  },
   getByPatient: async (patientId) => {
     const response = await api.get(`/api/notifications/patient/${patientId}`);
     return response.data;

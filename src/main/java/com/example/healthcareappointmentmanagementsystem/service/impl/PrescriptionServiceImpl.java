@@ -5,6 +5,7 @@ import com.example.healthcareappointmentmanagementsystem.dto.response.Prescripti
 import com.example.healthcareappointmentmanagementsystem.dto.response.WhatsAppDeliveryResponse;
 import com.example.healthcareappointmentmanagementsystem.entity.Appointment;
 import com.example.healthcareappointmentmanagementsystem.entity.AppointmentStatus;
+import com.example.healthcareappointmentmanagementsystem.entity.Patient;
 import com.example.healthcareappointmentmanagementsystem.entity.Prescription;
 import com.example.healthcareappointmentmanagementsystem.exception.BadRequestException;
 import com.example.healthcareappointmentmanagementsystem.exception.DuplicateResourceException;
@@ -49,6 +50,9 @@ public class PrescriptionServiceImpl implements PrescriptionService {
     private final PrescriptionPdfService prescriptionPdfService;
     private final WhatsAppService whatsAppService;
     private final NotificationService notificationService;
+
+    @Autowired(required = false)
+    private com.example.healthcareappointmentmanagementsystem.repository.DoctorRepository doctorRepository;
 
     /**
      * Primary constructor injection for Spring Boot.
@@ -331,8 +335,21 @@ public class PrescriptionServiceImpl implements PrescriptionService {
     @Transactional(readOnly = true)
     public List<PrescriptionResponse> getPrescriptionsByPatient(Long patientId) {
         // Verify patient exists
-        patientRepository.findById(patientId)
+        Patient patient = patientRepository.findById(patientId)
                 .orElseThrow(() -> new ResourceNotFoundException("Patient not found with ID: " + patientId));
+
+        // Security check: If caller is Patient (and not Admin), they can only view their own prescriptions
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getName())) {
+            boolean isAdmin = auth.getAuthorities().contains(new SimpleGrantedAuthority("ROLE_ADMIN"));
+            boolean isPatient = auth.getAuthorities().contains(new SimpleGrantedAuthority("ROLE_PATIENT"));
+            if (isPatient && !isAdmin) {
+                String email = auth.getName();
+                if (patient.getUser() == null || !patient.getUser().getEmail().equalsIgnoreCase(email)) {
+                    throw new UnauthorizedException("You are not authorized to view another patient's prescriptions.");
+                }
+            }
+        }
 
         List<Prescription> prescriptions = prescriptionRepository.findByAppointment_Patient_Id(patientId);
         return prescriptions.stream()
@@ -342,8 +359,61 @@ public class PrescriptionServiceImpl implements PrescriptionService {
 
     @Override
     @Transactional(readOnly = true)
+    public List<PrescriptionResponse> getMyPrescriptionsForPatient() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getName())) {
+            throw new UnauthorizedException("User is not authenticated. Please log in.");
+        }
+
+        String email = auth.getName();
+        Patient patient = patientRepository.findByUser_Email(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Patient profile not found for user: " + email));
+
+        List<Prescription> prescriptions = prescriptionRepository.findByAppointment_Patient_Id(patient.getId());
+        return prescriptions.stream()
+                .map(prescriptionMapper::toResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<PrescriptionResponse> getPrescriptionsByDoctor(Long doctorId) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.isAuthenticated() && !"anonymousUser".equals(authentication.getName())) {
+            boolean isAdmin = authentication.getAuthorities().contains(new SimpleGrantedAuthority("ROLE_ADMIN"));
+            boolean isDoctor = authentication.getAuthorities().contains(new SimpleGrantedAuthority("ROLE_DOCTOR"));
+            if (isDoctor && !isAdmin && doctorRepository != null) {
+                String email = authentication.getName();
+                com.example.healthcareappointmentmanagementsystem.entity.Doctor doctor = doctorRepository.findById(doctorId).orElse(null);
+                if (doctor != null && doctor.getUser() != null && !doctor.getUser().getEmail().equalsIgnoreCase(email)) {
+                    throw new UnauthorizedException("You are not authorized to view another doctor's prescriptions.");
+                }
+            }
+        }
+
         List<Prescription> prescriptions = prescriptionRepository.findByAppointment_Doctor_Id(doctorId);
+        return prescriptions.stream()
+                .map(prescriptionMapper::toResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<PrescriptionResponse> getMyPrescriptionsForDoctor() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getName())) {
+            throw new UnauthorizedException("User is not authenticated. Please log in.");
+        }
+
+        String email = auth.getName();
+        if (doctorRepository == null) {
+            throw new RuntimeException("DoctorRepository is not available.");
+        }
+
+        com.example.healthcareappointmentmanagementsystem.entity.Doctor doctor = doctorRepository.findByUser_Email(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Doctor profile not found for user: " + email));
+
+        List<Prescription> prescriptions = prescriptionRepository.findByAppointment_Doctor_Id(doctor.getId());
         return prescriptions.stream()
                 .map(prescriptionMapper::toResponse)
                 .collect(Collectors.toList());

@@ -8,6 +8,7 @@ function BookAppointment({ user }) {
 
   const [doctors, setDoctors] = useState([]);
   const [patients, setPatients] = useState([]);
+  const [patientName, setPatientName] = useState('');
   const [loading, setLoading] = useState(false);
   const [fetchLoading, setFetchLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -69,8 +70,6 @@ function BookAppointment({ user }) {
     fetchSlots();
   }, [doctorId, appointmentDate]);
 
-
-
   useEffect(() => {
     const loadMetadata = async () => {
       setFetchLoading(true);
@@ -92,9 +91,18 @@ function BookAppointment({ user }) {
             setPatientId(patList[0].id);
           }
         } else if (isPatient) {
-          const cachedUser = JSON.parse(localStorage.getItem('user') || '{}');
-          if (cachedUser.patientId) {
-            setPatientId(cachedUser.patientId);
+          try {
+            const profile = await patientAPI.getMe();
+            if (profile) {
+              setPatientName(profile.fullName || `${profile.firstName || ''} ${profile.lastName || ''}`.trim());
+              const cachedUser = JSON.parse(localStorage.getItem('user') || '{}');
+              if (profile.id) {
+                cachedUser.patientId = profile.id;
+                localStorage.setItem('user', JSON.stringify(cachedUser));
+              }
+            }
+          } catch (profileErr) {
+            console.debug('Patient profile retrieval on book appointment:', profileErr);
           }
         }
       } catch (err) {
@@ -117,8 +125,8 @@ function BookAppointment({ user }) {
       tempErrors.doctorId = 'Please select a consulting doctor';
     }
 
-    if (!patientId) {
-      tempErrors.patientId = 'Patient Profile ID is required';
+    if (isAdmin && !patientId) {
+      tempErrors.patientId = 'Please select a patient profile';
     }
 
     if (!appointmentDate) {
@@ -164,7 +172,7 @@ function BookAppointment({ user }) {
 
       const appointmentData = {
         doctorId: Number(doctorId),
-        patientId: Number(patientId),
+        ...(isAdmin && patientId ? { patientId: Number(patientId) } : {}),
         appointmentDate,
         appointmentTime: formatTime(appointmentTime),
         reasonForVisit: reason
@@ -173,12 +181,6 @@ function BookAppointment({ user }) {
       await appointmentAPI.book(appointmentData);
 
       setSuccessMessage('Appointment booked successfully! Our clinical staff will review your request.');
-
-      if (isPatient) {
-        const cachedUser = JSON.parse(localStorage.getItem('user') || '{}');
-        cachedUser.patientId = patientId;
-        localStorage.setItem('user', JSON.stringify(cachedUser));
-      }
 
       setReason('');
       setAppointmentDate('');
@@ -220,6 +222,32 @@ function BookAppointment({ user }) {
           </div>
         ) : (
           <form onSubmit={handleSubmit}>
+            {/* LOGGED IN PATIENT IDENTIFIER */}
+            {isPatient && (
+              <div
+                style={{
+                  backgroundColor: 'var(--primary-light, #eff6ff)',
+                  border: '1px solid var(--primary-light-border, #bfdbfe)',
+                  borderRadius: 'var(--radius-md, 8px)',
+                  padding: '0.85rem 1.25rem',
+                  marginBottom: '1.5rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem'
+                }}
+              >
+                <span style={{ fontSize: '1.3rem' }}>👤</span>
+                <div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary, #64748b)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.05em' }}>
+                    Patient Account
+                  </div>
+                  <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--primary-dark, #1e3a8a)' }}>
+                    Booking appointment for: {patientName || (user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : (user?.email || 'Logged-in Patient'))}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* 1. SELECT DOCTOR */}
             <div className="form-group">
               <label className="form-label" htmlFor="doctorSelect">
@@ -277,8 +305,8 @@ function BookAppointment({ user }) {
               </div>
             )}
 
-            {/* 2. PATIENT CONTEXT */}
-            {isAdmin ? (
+            {/* 2. ADMIN PATIENT SELECTOR */}
+            {isAdmin && (
               <div className="form-group">
                 <label className="form-label" htmlFor="patientSelect">
                   2. Select Patient Profile <span style={{ color: 'var(--danger-text)' }}>*</span>
@@ -299,24 +327,6 @@ function BookAppointment({ user }) {
                     ))}
                   </select>
                 )}
-                {errors.patientId && <span className="form-error-msg">{errors.patientId}</span>}
-              </div>
-            ) : (
-              <div className="form-group">
-                <label className="form-label" htmlFor="patientId">
-                  2. Your Patient Profile ID <span style={{ color: 'var(--danger-text)' }}>*</span>
-                </label>
-                <input
-                  id="patientId"
-                  type="number"
-                  className="form-control"
-                  placeholder="e.g. 4"
-                  value={patientId}
-                  onChange={(e) => setPatientId(e.target.value)}
-                />
-                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.25rem', display: 'block' }}>
-                  Note: This is the ID assigned to your patient medical profile.
-                </span>
                 {errors.patientId && <span className="form-error-msg">{errors.patientId}</span>}
               </div>
             )}
@@ -483,7 +493,7 @@ function BookAppointment({ user }) {
             {/* SUBMIT BUTTON */}
             <button
               type="submit"
-              disabled={loading || !doctorId || !patientId || availableSlots.length === 0}
+              disabled={loading || !doctorId || (isAdmin && !patientId) || availableSlots.length === 0}
               className="btn btn-primary"
               style={{ width: '100%', padding: '0.8rem', fontSize: '1rem', marginTop: '0.5rem' }}
             >

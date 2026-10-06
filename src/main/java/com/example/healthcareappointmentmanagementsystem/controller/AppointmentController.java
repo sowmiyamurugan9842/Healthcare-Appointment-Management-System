@@ -32,10 +32,10 @@ public class AppointmentController {
     /**
      * Endpoint to book a new appointment.
      * Maps to POST /api/appointments.
-     * Access: PATIENT only.
+     * Access: PATIENT (automatic patient resolution) or ADMIN (explicit patient selection).
      */
     @PostMapping
-    @PreAuthorize("hasRole('PATIENT')")
+    @PreAuthorize("hasAnyRole('PATIENT', 'ADMIN')")
     public ResponseEntity<AppointmentResponse> bookAppointment(@Valid @RequestBody AppointmentRequest request) {
         AppointmentResponse response = appointmentService.bookAppointment(request);
         return new ResponseEntity<>(response, HttpStatus.CREATED);
@@ -66,24 +66,48 @@ public class AppointmentController {
     }
 
     /**
-     * Endpoint to retrieve appointments booked by a specific patient.
-     * Maps to GET /api/appointments/patient/{patientId}.
+     * Endpoint to retrieve appointments booked by the currently authenticated patient.
+     * Maps to GET /api/appointments/patient/me.
      * Access: PATIENT only.
      */
-    @GetMapping("/patient/{patientId}")
+    @GetMapping("/patient/me")
     @PreAuthorize("hasRole('PATIENT')")
+    public ResponseEntity<List<AppointmentResponse>> getMyAppointmentsForPatient() {
+        List<AppointmentResponse> response = appointmentService.getMyAppointmentsForPatient();
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Endpoint to retrieve appointments booked by a specific patient.
+     * Maps to GET /api/appointments/patient/{patientId}.
+     * Access: PATIENT or ADMIN.
+     */
+    @GetMapping("/patient/{patientId}")
+    @PreAuthorize("hasAnyRole('PATIENT', 'ADMIN')")
     public ResponseEntity<List<AppointmentResponse>> getAppointmentsByPatient(@PathVariable Long patientId) {
         List<AppointmentResponse> response = appointmentService.getAppointmentsByPatient(patientId);
         return ResponseEntity.ok(response);
     }
 
     /**
-     * Endpoint to retrieve appointments assigned to a specific doctor.
-     * Maps to GET /api/appointments/doctor/{doctorId}.
+     * Endpoint to retrieve appointments assigned to the currently authenticated doctor.
+     * Maps to GET /api/appointments/doctor/me.
      * Access: DOCTOR only.
      */
-    @GetMapping("/doctor/{doctorId}")
+    @GetMapping("/doctor/me")
     @PreAuthorize("hasRole('DOCTOR')")
+    public ResponseEntity<List<AppointmentResponse>> getMyAppointmentsForDoctor() {
+        List<AppointmentResponse> response = appointmentService.getMyAppointmentsForDoctor();
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Endpoint to retrieve appointments assigned to a specific doctor.
+     * Maps to GET /api/appointments/doctor/{doctorId}.
+     * Access: DOCTOR or ADMIN.
+     */
+    @GetMapping("/doctor/{doctorId}")
+    @PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
     public ResponseEntity<List<AppointmentResponse>> getAppointmentsByDoctor(@PathVariable Long doctorId) {
         List<AppointmentResponse> response = appointmentService.getAppointmentsByDoctor(doctorId);
         return ResponseEntity.ok(response);
@@ -114,12 +138,24 @@ public class AppointmentController {
     }
 
     /**
-     * Endpoint to confirm all pending appointments for a specific doctor.
-     * Maps to PUT /api/appointments/doctor/{doctorId}/confirm-all.
+     * Endpoint to confirm all pending appointments for the currently authenticated doctor.
+     * Maps to PUT /api/appointments/doctor/me/confirm-all.
      * Access: DOCTOR only.
      */
-    @PutMapping("/doctor/{doctorId}/confirm-all")
+    @PutMapping("/doctor/me/confirm-all")
     @PreAuthorize("hasRole('DOCTOR')")
+    public ResponseEntity<List<AppointmentResponse>> confirmAllMyAppointments() {
+        List<AppointmentResponse> response = appointmentService.confirmAllMyAppointments();
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Endpoint to confirm all pending appointments for a specific doctor.
+     * Maps to PUT /api/appointments/doctor/{doctorId}/confirm-all.
+     * Access: DOCTOR or ADMIN.
+     */
+    @PutMapping("/doctor/{doctorId}/confirm-all")
+    @PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
     public ResponseEntity<List<AppointmentResponse>> confirmAllAppointmentsByDoctor(@PathVariable Long doctorId) {
         List<AppointmentResponse> response = appointmentService.confirmAllAppointmentsByDoctor(doctorId);
         return ResponseEntity.ok(response);

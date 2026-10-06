@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { prescriptionAPI } from '../services/api';
+import { prescriptionAPI, patientAPI } from '../services/api';
 import PrescriptionView from './PrescriptionView';
 import { Link } from 'react-router-dom';
 
@@ -8,20 +8,11 @@ function PatientPrescriptions({ user }) {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [selectedPrescription, setSelectedPrescription] = useState(null);
-  const [patientId, setPatientId] = useState('');
-  const [isPatientLinked, setIsPatientLinked] = useState(false);
+  const [patientProfile, setPatientProfile] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
 
   const isPatient = user && user.role === 'PATIENT';
   const isAdmin = user && user.role === 'ADMIN';
-
-  useEffect(() => {
-    const cachedUser = JSON.parse(localStorage.getItem('user') || '{}');
-    if (cachedUser.patientId) {
-      setPatientId(cachedUser.patientId);
-      setIsPatientLinked(true);
-    }
-  }, []);
 
   const loadPrescriptions = useCallback(async () => {
     setLoading(true);
@@ -30,8 +21,8 @@ function PatientPrescriptions({ user }) {
       let data = [];
       if (isAdmin) {
         data = await prescriptionAPI.getAll();
-      } else if (patientId) {
-        data = await prescriptionAPI.getByPatient(patientId);
+      } else if (isPatient) {
+        data = await prescriptionAPI.getMyPatientPrescriptions();
       }
       setPrescriptions(data || []);
     } catch (err) {
@@ -40,34 +31,20 @@ function PatientPrescriptions({ user }) {
     } finally {
       setLoading(false);
     }
-  }, [isAdmin, patientId]);
+  }, [isAdmin, isPatient]);
 
   useEffect(() => {
-    if (isAdmin || (isPatient && isPatientLinked && patientId)) {
+    if (isPatient) {
+      patientAPI.getMe().then((profile) => {
+        if (profile) setPatientProfile(profile);
+      }).catch((err) => {
+        console.debug('No patient profile found on prescriptions load:', err);
+      });
+    }
+    if (isAdmin || isPatient) {
       loadPrescriptions();
     }
-  }, [isAdmin, isPatient, isPatientLinked, patientId, loadPrescriptions]);
-
-  const handleLinkPatient = (e) => {
-    e.preventDefault();
-    if (!patientId) return;
-
-    const cachedUser = JSON.parse(localStorage.getItem('user') || '{}');
-    cachedUser.patientId = patientId;
-    localStorage.setItem('user', JSON.stringify(cachedUser));
-
-    setIsPatientLinked(true);
-  };
-
-  const handleUnlinkPatient = () => {
-    const cachedUser = JSON.parse(localStorage.getItem('user') || '{}');
-    delete cachedUser.patientId;
-    localStorage.setItem('user', JSON.stringify(cachedUser));
-
-    setIsPatientLinked(false);
-    setPatientId('');
-    setPrescriptions([]);
-  };
+  }, [isAdmin, isPatient, loadPrescriptions]);
 
   const filteredPrescriptions = prescriptions.filter((px) => {
     if (!searchQuery.trim()) return true;
@@ -97,79 +74,37 @@ function PatientPrescriptions({ user }) {
           <p>
             {isAdmin
               ? 'Administrator View: Complete repository of issued clinical prescriptions.'
-              : `Patient View: Digital prescriptions issued under Patient Profile ID #${patientId}`}
+              : `Patient View: Digital prescriptions issued for ${patientProfile?.firstName ? `${patientProfile.firstName} ${patientProfile.lastName || ''}`.trim() : (user?.firstName || 'your care plan')}`}
           </p>
         </div>
 
-        {(isAdmin || (isPatient && isPatientLinked)) && (
-          <div style={{ display: 'flex', gap: '0.75rem' }}>
-            <Link to="/patient-appointments" className="btn btn-secondary">
-              📅 My Appointments
-            </Link>
-            <button onClick={loadPrescriptions} disabled={loading} className="btn btn-primary">
-              {loading ? 'Refreshing...' : '↻ Refresh Rx Log'}
-            </button>
-          </div>
-        )}
+        <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <Link to="/patient-appointments" className="btn btn-secondary">
+            📅 My Appointments
+          </Link>
+          <button onClick={loadPrescriptions} disabled={loading} className="btn btn-primary">
+            {loading ? 'Refreshing...' : '↻ Refresh Rx Log'}
+          </button>
+        </div>
       </div>
 
       {errorMessage && <div className="alert alert-danger">⚠️ {errorMessage}</div>}
 
-      {/* PATIENT ID UNLINKED PROMPT */}
-      {isPatient && !isPatientLinked && (
-        <div style={{ maxWidth: '480px', margin: '2rem auto', textAlign: 'center' }} className="card">
-          <div className="empty-state-icon">💊</div>
-          <h3>Link Patient Profile ID</h3>
-          <p style={{ margin: '0.75rem 0 1.5rem', fontSize: '0.9rem' }}>
-            Enter your Patient Profile ID to retrieve your digital medical prescriptions.
-          </p>
-          <form onSubmit={handleLinkPatient}>
-            <div className="form-group">
-              <label className="form-label" htmlFor="patientIdInput">Patient Profile ID</label>
-              <input
-                id="patientIdInput"
-                type="number"
-                required
-                className="form-control"
-                placeholder="e.g. 4"
-                value={patientId}
-                onChange={(e) => setPatientId(e.target.value)}
-              />
-            </div>
-            <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
-              Load My Prescriptions
-            </button>
-          </form>
-        </div>
-      )}
-
       {/* PRESCRIPTIONS LOG TABLE */}
-      {(isAdmin || (isPatient && isPatientLinked)) && (
-        <div className="card">
-          <div className="filter-bar" style={{ justifyContent: 'space-between' }}>
-            <div className="filter-group" style={{ flex: '1 1 300px' }}>
-              <input
-                type="text"
-                className="form-control"
-                placeholder="Search prescription by doctor, diagnosis, or Rx ID..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-
-            {isPatient && (
-              <button
-                onClick={handleUnlinkPatient}
-                className="btn btn-secondary"
-                style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}
-                title="Unlink current Patient Profile ID"
-              >
-                Unlink ID (#{patientId})
-              </button>
-            )}
+      <div className="card">
+        <div className="filter-bar" style={{ justifyContent: 'space-between' }}>
+          <div className="filter-group" style={{ flex: '1 1 300px' }}>
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Search prescription by doctor, diagnosis, or Rx ID..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
           </div>
+        </div>
 
-          {loading ? (
+        {loading ? (
             <div className="empty-state-box">
               <div className="empty-state-icon">⏳</div>
               <div className="empty-state-title">Retrieving Digital Prescriptions...</div>
@@ -323,7 +258,6 @@ function PatientPrescriptions({ user }) {
             </div>
           )}
         </div>
-      )}
 
       {/* PRESCRIPTION DETAIL MODAL (USES REACT PORTAL) */}
       {selectedPrescription && (

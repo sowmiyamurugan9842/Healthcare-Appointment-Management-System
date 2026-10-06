@@ -66,6 +66,18 @@ public class PrescriptionController {
     }
 
     /**
+     * Endpoint to retrieve all prescriptions for the currently authenticated patient.
+     * Maps to GET /api/prescriptions/patient/me.
+     * Access: PATIENT only.
+     */
+    @GetMapping("/patient/me")
+    @PreAuthorize("hasRole('PATIENT')")
+    public ResponseEntity<List<PrescriptionResponse>> getMyPrescriptionsForPatient() {
+        List<PrescriptionResponse> response = prescriptionService.getMyPrescriptionsForPatient();
+        return ResponseEntity.ok(response);
+    }
+
+    /**
      * Endpoint to retrieve all prescriptions for a specific patient.
      * Maps to GET /api/prescriptions/patient/{patientId}.
      * Access: ADMIN, DOCTOR, PATIENT.
@@ -86,6 +98,18 @@ public class PrescriptionController {
     @PreAuthorize("hasAnyRole('ADMIN', 'DOCTOR', 'PATIENT')")
     public ResponseEntity<PrescriptionResponse> getPrescriptionByAppointment(@PathVariable Long appointmentId) {
         PrescriptionResponse response = prescriptionService.getPrescriptionByAppointment(appointmentId);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Endpoint to retrieve all prescriptions created by the currently authenticated doctor.
+     * Maps to GET /api/prescriptions/doctor/me.
+     * Access: DOCTOR only.
+     */
+    @GetMapping("/doctor/me")
+    @PreAuthorize("hasRole('DOCTOR')")
+    public ResponseEntity<List<PrescriptionResponse>> getMyPrescriptionsForDoctor() {
+        List<PrescriptionResponse> response = prescriptionService.getMyPrescriptionsForDoctor();
         return ResponseEntity.ok(response);
     }
 

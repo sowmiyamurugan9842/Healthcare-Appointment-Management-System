@@ -21,7 +21,7 @@ const parseJwt = (token) => {
 };
 
 function Login({ onLoginSuccess }) {
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
@@ -32,10 +32,13 @@ function Login({ onLoginSuccess }) {
 
   const validate = () => {
     const tempErrors = {};
-    if (!email) {
-      tempErrors.email = 'Email address is required';
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
-      tempErrors.email = 'Please enter a valid email address';
+    const trimmed = identifier.trim();
+    if (!trimmed) {
+      tempErrors.identifier = 'Email address or User ID is required';
+    } else if (/^\d+$/.test(trimmed)) {
+      // Valid numeric User ID
+    } else if (!/\S+@\S+\.\S+/.test(trimmed)) {
+      tempErrors.identifier = 'Please enter a valid email address or numeric User ID';
     }
 
     if (!password) {
@@ -57,7 +60,7 @@ function Login({ onLoginSuccess }) {
 
     setLoading(true);
     try {
-      const token = await authAPI.login(email, password);
+      const token = await authAPI.login(identifier, password);
 
       const claims = parseJwt(token);
       if (claims) {
@@ -86,7 +89,7 @@ function Login({ onLoginSuccess }) {
       }
     } catch (error) {
       console.error('Login error:', error);
-      const msg = error.response?.data?.message || error.response?.data || 'Invalid email or password';
+      const msg = error.response?.data?.message || error.response?.data || 'Invalid email/User ID or password';
       setErrorMessage(typeof msg === 'string' ? msg : 'Login failed. Please check your credentials.');
     } finally {
       setLoading(false);
@@ -137,7 +140,7 @@ function Login({ onLoginSuccess }) {
       <div className="auth-form-pane">
         <div className="auth-form-header">
           <h2>Welcome Back</h2>
-          <p>Please enter your credentials to access your portal.</p>
+          <p>Please enter your User ID or Email to access your portal.</p>
         </div>
 
         {errorMessage && <div className="alert alert-danger">⚠️ {errorMessage}</div>}
@@ -145,19 +148,22 @@ function Login({ onLoginSuccess }) {
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label className="form-label" htmlFor="email">
-              Email Address
+            <label className="form-label" htmlFor="identifier">
+              Email Address or User ID
             </label>
             <input
-              id="email"
-              type="email"
-              autoComplete="email"
+              id="identifier"
+              type="text"
+              autoComplete="username"
               className="form-control"
-              placeholder="name@careportal.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              placeholder="e.g. alex@careportal.com or User ID (e.g. 25)"
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
             />
-            {errors.email && <span className="form-error-msg">{errors.email}</span>}
+            {errors.identifier && <span className="form-error-msg">{errors.identifier}</span>}
+            <small style={{ color: 'var(--text-secondary)', fontSize: '0.78rem', marginTop: '0.25rem', display: 'block' }}>
+              Tip: You can use your assigned User ID (from registration) or registered email.
+            </small>
           </div>
 
           <div className="form-group">

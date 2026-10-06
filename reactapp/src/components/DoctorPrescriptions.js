@@ -18,22 +18,8 @@ function DoctorPrescriptions({ user }) {
   const [viewingPrescription, setViewingPrescription] = useState(null);
   const [loadingPrescriptionApptId, setLoadingPrescriptionApptId] = useState(null);
 
-  // Doctor Linking State
-  const [doctorId, setDoctorId] = useState('');
-  const [isDoctorLinked, setIsDoctorLinked] = useState(false);
-
   const isDoctor = user && user.role === 'DOCTOR';
   const isAdmin = user && user.role === 'ADMIN';
-
-  useEffect(() => {
-    if (isDoctor) {
-      const cachedUser = JSON.parse(localStorage.getItem('user') || '{}');
-      if (cachedUser.doctorId) {
-        setDoctorId(cachedUser.doctorId);
-        setIsDoctorLinked(true);
-      }
-    }
-  }, [isDoctor]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -49,10 +35,10 @@ function DoctorPrescriptions({ user }) {
         ]);
         appts = (allAppts || []).filter((a) => a.status?.toUpperCase() === 'COMPLETED');
         rxs = allRxs || [];
-      } else if (isDoctor && isDoctorLinked && doctorId) {
+      } else if (isDoctor) {
         const [docAppts, docRxs] = await Promise.all([
-          appointmentAPI.getByDoctor(doctorId).catch(() => []),
-          prescriptionAPI.getByDoctor(doctorId).catch(() => [])
+          appointmentAPI.getMyDoctorAppointments().catch(() => []),
+          prescriptionAPI.getMyDoctorPrescriptions().catch(() => [])
         ]);
         appts = (docAppts || []).filter((a) => a.status?.toUpperCase() === 'COMPLETED');
         rxs = docRxs || [];
@@ -66,35 +52,13 @@ function DoctorPrescriptions({ user }) {
     } finally {
       setLoading(false);
     }
-  }, [isAdmin, isDoctor, isDoctorLinked, doctorId]);
+  }, [isAdmin, isDoctor]);
 
   useEffect(() => {
-    if (isAdmin || (isDoctor && isDoctorLinked)) {
+    if (isAdmin || isDoctor) {
       loadData();
     }
-  }, [isAdmin, isDoctor, isDoctorLinked, loadData]);
-
-  const handleLinkDoctor = (e) => {
-    e.preventDefault();
-    if (!doctorId) return;
-
-    const cachedUser = JSON.parse(localStorage.getItem('user') || '{}');
-    cachedUser.doctorId = doctorId;
-    localStorage.setItem('user', JSON.stringify(cachedUser));
-
-    setIsDoctorLinked(true);
-  };
-
-  const handleUnlinkDoctor = () => {
-    const cachedUser = JSON.parse(localStorage.getItem('user') || '{}');
-    delete cachedUser.doctorId;
-    localStorage.setItem('user', JSON.stringify(cachedUser));
-
-    setIsDoctorLinked(false);
-    setDoctorId('');
-    setCompletedAppointments([]);
-    setPrescriptions([]);
-  };
+  }, [isAdmin, isDoctor, loadData]);
 
   const handleViewPrescription = async (appt) => {
     setErrorMessage('');
@@ -177,98 +141,56 @@ function DoctorPrescriptions({ user }) {
           <p>
             {isAdmin
               ? 'Administrator View: Comprehensive clinical prescriptions and completed visit records.'
-              : `Doctor View: Issue & audit digital prescriptions for completed visits (Doctor ID #${doctorId}).`}
+              : 'Doctor View: Issue & audit digital prescriptions for your completed consultations.'}
           </p>
         </div>
 
-        {(isAdmin || (isDoctor && isDoctorLinked)) && (
-          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-            <Link to="/appointments" className="btn btn-secondary">
-              📅 My Appointments
-            </Link>
-            <button onClick={loadData} disabled={loading} className="btn btn-primary">
-              {loading ? 'Refreshing...' : '↻ Refresh Rx Console'}
-            </button>
-          </div>
-        )}
+        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <Link to="/appointments" className="btn btn-secondary">
+            📅 My Appointments
+          </Link>
+          <button onClick={loadData} disabled={loading} className="btn btn-primary">
+            {loading ? 'Refreshing...' : '↻ Refresh Rx Console'}
+          </button>
+        </div>
       </div>
 
       {errorMessage && <div className="alert alert-danger">⚠️ {errorMessage}</div>}
       {successMessage && <div className="alert alert-success">✓ {successMessage}</div>}
 
-      {/* DOCTOR UNLINKED PROMPT */}
-      {isDoctor && !isDoctorLinked && (
-        <div style={{ maxWidth: '480px', margin: '2rem auto', textAlign: 'center' }} className="card">
-          <div className="empty-state-icon">🩺</div>
-          <h3>Link Doctor Profile ID</h3>
-          <p style={{ margin: '0.75rem 0 1.5rem', fontSize: '0.9rem' }}>
-            Please enter your Doctor Profile ID to manage prescriptions for your completed consultations.
-          </p>
-          <form onSubmit={handleLinkDoctor}>
-            <div className="form-group">
-              <label className="form-label" htmlFor="docIdInput">Doctor Profile ID</label>
-              <input
-                id="docIdInput"
-                type="number"
-                required
-                className="form-control"
-                placeholder="e.g. 4"
-                value={doctorId}
-                onChange={(e) => setDoctorId(e.target.value)}
-              />
-            </div>
-            <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
-              Load Prescription Console
-            </button>
-          </form>
-        </div>
-      )}
-
       {/* COMPLETED CONSULTATIONS & PRESCRIPTIONS TABLE */}
-      {(isAdmin || (isDoctor && isDoctorLinked)) && (
-        <div className="card">
-          {/* TOOLBAR */}
-          <div className="filter-bar" style={{ justifyContent: 'space-between' }}>
-            <div className="filter-group" style={{ flex: '1 1 280px' }}>
-              <input
-                type="text"
+      <div className="card">
+        {/* TOOLBAR */}
+        <div className="filter-bar" style={{ justifyContent: 'space-between' }}>
+          <div className="filter-group" style={{ flex: '1 1 280px' }}>
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Search patient, reason, Appt ID, or Rx..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div className="filter-group">
+              <label className="form-label" style={{ marginBottom: 0, marginRight: '0.25rem' }} htmlFor="rxFilter">
+                Filter:
+              </label>
+              <select
+                id="rxFilter"
                 className="form-control"
-                placeholder="Search patient, reason, Appt ID, or Rx..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-
-            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-              <div className="filter-group">
-                <label className="form-label" style={{ marginBottom: 0, marginRight: '0.25rem' }} htmlFor="rxFilter">
-                  Filter:
-                </label>
-                <select
-                  id="rxFilter"
-                  className="form-control"
-                  style={{ width: 'auto', padding: '0.5rem 0.85rem' }}
-                  value={filterType}
-                  onChange={(e) => setFilterType(e.target.value)}
-                >
-                  <option value="ALL">All Completed Visits ({completedAppointments.length})</option>
-                  <option value="PENDING_RX">Needs Prescription ({completedAppointments.filter(a => !getPrescriptionForAppt(a.id)).length})</option>
-                  <option value="ISSUED_RX">Prescriptions Issued ({completedAppointments.filter(a => getPrescriptionForAppt(a.id)).length})</option>
-                </select>
-              </div>
-
-              {isDoctor && (
-                <button
-                  onClick={handleUnlinkDoctor}
-                  className="btn btn-secondary"
-                  style={{ padding: '0.45rem 0.75rem', fontSize: '0.8rem' }}
-                  title="Unlink current doctor profile ID"
-                >
-                  Unlink ID (#{doctorId})
-                </button>
-              )}
+                style={{ width: 'auto', padding: '0.5rem 0.85rem' }}
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value)}
+              >
+                <option value="ALL">All Completed Visits ({completedAppointments.length})</option>
+                <option value="PENDING_RX">Needs Prescription ({completedAppointments.filter(a => !getPrescriptionForAppt(a.id)).length})</option>
+                <option value="ISSUED_RX">Prescriptions Issued ({completedAppointments.filter(a => getPrescriptionForAppt(a.id)).length})</option>
+              </select>
             </div>
           </div>
+        </div>
 
           {/* TABLE CONTENT */}
           {loading ? (

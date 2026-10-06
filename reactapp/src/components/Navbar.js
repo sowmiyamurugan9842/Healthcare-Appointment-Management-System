@@ -16,18 +16,14 @@ function Navbar({ user, onLogout }) {
   const isPatient = user && user.role === 'PATIENT';
 
   const loadNotifications = async () => {
-    if (!user) return;
-    const cachedUser = JSON.parse(localStorage.getItem('user') || '{}');
-    const patId = cachedUser.patientId;
-    if (patId) {
-      try {
-        const list = await notificationAPI.getByPatient(patId);
-        setNotifications(list || []);
-        const unread = (list || []).filter((n) => !n.isRead).length;
-        setUnreadCount(unread);
-      } catch (err) {
-        console.warn('Unable to load patient notifications:', err);
-      }
+    if (!user || !isPatient) return;
+    try {
+      const list = await notificationAPI.getMyNotifications();
+      setNotifications(list || []);
+      const unread = (list || []).filter((n) => !n.isRead).length;
+      setUnreadCount(unread);
+    } catch (err) {
+      console.warn('Unable to load patient notifications:', err);
     }
   };
 
@@ -61,15 +57,11 @@ function Navbar({ user, onLogout }) {
   };
 
   const handleMarkAllAsRead = async () => {
-    const cachedUser = JSON.parse(localStorage.getItem('user') || '{}');
-    const patId = cachedUser.patientId;
-    if (patId) {
-      try {
-        await notificationAPI.markAllAsRead(patId);
-        loadNotifications();
-      } catch (err) {
-        console.error('Error marking all as read:', err);
-      }
+    try {
+      await notificationAPI.markAllMyAsRead();
+      loadNotifications();
+    } catch (err) {
+      console.error('Error marking all as read:', err);
     }
   };
 

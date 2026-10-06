@@ -22,6 +22,24 @@ public class NotificationController {
     }
 
     /**
+     * Retrieve all notifications for the currently authenticated patient.
+     */
+    @GetMapping({"/me", "/patient/me"})
+    public ResponseEntity<List<NotificationResponse>> getMyNotifications() {
+        List<NotificationResponse> notifications = notificationService.getMyNotifications();
+        return ResponseEntity.ok(notifications);
+    }
+
+    /**
+     * Retrieve unread notification count for the currently authenticated patient.
+     */
+    @GetMapping({"/me/unread-count", "/patient/me/unread-count"})
+    public ResponseEntity<Map<String, Long>> getMyUnreadCount() {
+        long count = notificationService.getMyUnreadCount();
+        return ResponseEntity.ok(Map.of("unreadCount", count));
+    }
+
+    /**
      * Retrieve all notifications for a specific patient.
      */
     @GetMapping("/patient/{patientId}")
@@ -49,7 +67,16 @@ public class NotificationController {
     }
 
     /**
-     * Mark all notifications as read for a patient.
+     * Mark all notifications as read for the currently authenticated patient.
+     */
+    @PutMapping({"/me/read-all", "/patient/me/read-all"})
+    public ResponseEntity<Map<String, String>> markAllMyAsRead() {
+        notificationService.markAllMyAsRead();
+        return ResponseEntity.ok(Map.of("message", "All notifications marked as read"));
+    }
+
+    /**
+     * Mark all notifications as read for a specific patient.
      */
     @PutMapping("/patient/{patientId}/read-all")
     public ResponseEntity<Map<String, String>> markAllAsRead(@PathVariable Long patientId) {

@@ -75,5 +75,28 @@ public interface DoctorService {
      * @return DoctorAvailableSlotsResponse containing doctorId, date, and list of available slot times
      */
     DoctorAvailableSlotsResponse getAvailableSlots(Long doctorId, LocalDate date);
+
+    /**
+     * Retrieves the doctor profile belonging to the currently authenticated user.
+     *
+     * @return DoctorResponse DTO
+     */
+    DoctorResponse getCurrentDoctorProfile();
+
+    /**
+     * Retrieves a doctor profile by the underlying User ID.
+     *
+     * @param userId user primary key
+     * @return DoctorResponse DTO
+     */
+    DoctorResponse getDoctorByUserId(Long userId);
+
+    /**
+     * Retrieves a doctor profile by the underlying User Email.
+     *
+     * @param email user email
+     * @return DoctorResponse DTO
+     */
+    DoctorResponse getDoctorByUserEmail(String email);
 }
 

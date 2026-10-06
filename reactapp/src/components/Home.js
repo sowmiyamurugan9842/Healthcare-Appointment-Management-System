@@ -49,41 +49,33 @@ function Home({ user }) {
             appointments: appts?.length || 0
           });
         } else if (user.role === 'DOCTOR') {
-          const cachedUser = JSON.parse(localStorage.getItem('user') || '{}');
-          const docId = cachedUser.doctorId;
-          if (docId) {
-            const appts = await appointmentAPI.getByDoctor(docId).catch(() => []);
-            const total = appts?.length || 0;
-            const pending = appts?.filter((a) => a.status === 'PENDING').length || 0;
-            const completed = appts?.filter((a) => a.status === 'COMPLETED').length || 0;
-            setDoctorStats({
-              total,
-              pending,
-              completed,
-              prescriptions: completed // doctor can issue rx for completed
-            });
-          }
+          const appts = await appointmentAPI.getMyDoctorAppointments().catch(() => []);
+          const total = appts?.length || 0;
+          const pending = appts?.filter((a) => a.status === 'PENDING').length || 0;
+          const completed = appts?.filter((a) => a.status === 'COMPLETED').length || 0;
+          setDoctorStats({
+            total,
+            pending,
+            completed,
+            prescriptions: completed // doctor can issue rx for completed
+          });
         } else if (user.role === 'PATIENT') {
-          const cachedUser = JSON.parse(localStorage.getItem('user') || '{}');
-          const patId = cachedUser.patientId;
-          if (patId) {
-            const [appts, rxs, notifs] = await Promise.all([
-              appointmentAPI.getByPatient(patId).catch(() => []),
-              prescriptionAPI.getByPatient(patId).catch(() => []),
-              notificationAPI.getByPatient(patId).catch(() => [])
-            ]);
-            const total = appts?.length || 0;
-            const upcoming = appts?.filter((a) => a.status === 'CONFIRMED' || a.status === 'APPROVED' || a.status === 'PENDING').length || 0;
-            const completed = appts?.filter((a) => a.status === 'COMPLETED').length || 0;
-            setPatientStats({
-              total,
-              upcoming,
-              completed,
-              prescriptions: rxs?.length || 0
-            });
-            const unread = (notifs || []).filter((n) => !n.isRead);
-            setPatientReminders(unread);
-          }
+          const [appts, rxs, notifs] = await Promise.all([
+            appointmentAPI.getMyPatientAppointments().catch(() => []),
+            prescriptionAPI.getMyPatientPrescriptions().catch(() => []),
+            notificationAPI.getMyNotifications().catch(() => [])
+          ]);
+          const total = appts?.length || 0;
+          const upcoming = appts?.filter((a) => a.status === 'CONFIRMED' || a.status === 'APPROVED' || a.status === 'PENDING').length || 0;
+          const completed = appts?.filter((a) => a.status === 'COMPLETED').length || 0;
+          setPatientStats({
+            total,
+            upcoming,
+            completed,
+            prescriptions: rxs?.length || 0
+          });
+          const unread = (notifs || []).filter((n) => !n.isRead);
+          setPatientReminders(unread);
         }
       } catch (err) {
         console.error('Error fetching dashboard statistics:', err);
@@ -234,23 +226,8 @@ function Home({ user }) {
 
   // 2. DOCTOR DASHBOARD
   if (user.role === 'DOCTOR') {
-    const cachedUser = JSON.parse(localStorage.getItem('user') || '{}');
-    const isLinked = Boolean(cachedUser.doctorId);
-
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-        {/* UNLINKED WARNING BANNER */}
-        {!isLinked && (
-          <div className="alert alert-info" style={{ justifyContent: 'space-between' }}>
-            <span>
-              💡 <strong>Doctor Profile ID not yet linked:</strong> Link your Doctor ID under <em>My Schedule</em> to view your specific consultations.
-            </span>
-            <Link to="/appointments" className="btn btn-primary" style={{ padding: '0.3rem 0.75rem', fontSize: '0.8rem' }}>
-              Link Doctor ID
-            </Link>
-          </div>
-        )}
-
         {/* WELCOME BANNER */}
         <div className="dashboard-welcome-banner">
           <div>
@@ -345,23 +322,8 @@ function Home({ user }) {
 
   // 3. PATIENT DASHBOARD
   if (user.role === 'PATIENT') {
-    const cachedUser = JSON.parse(localStorage.getItem('user') || '{}');
-    const isPatientLinked = Boolean(cachedUser.patientId);
-
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-        {/* UNLINKED WARNING BANNER */}
-        {!isPatientLinked && (
-          <div className="alert alert-info" style={{ justifyContent: 'space-between' }}>
-            <span>
-              💡 <strong>Patient Profile ID not yet linked:</strong> Link your Patient ID under <em>My Appointments</em> to track your consultations & digital prescriptions.
-            </span>
-            <Link to="/patient-appointments" className="btn btn-primary" style={{ padding: '0.3rem 0.75rem', fontSize: '0.8rem' }}>
-              Link Patient ID
-            </Link>
-          </div>
-        )}
-
         {/* WELCOME BANNER */}
         <div className="dashboard-welcome-banner">
           <div>

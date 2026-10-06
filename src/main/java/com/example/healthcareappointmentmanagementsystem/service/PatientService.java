@@ -62,6 +62,29 @@ public interface PatientService {
     PatientResponse updatePatient(Long id, PatientRequest request);
 
     /**
+     * Retrieves the patient profile belonging to the currently authenticated user.
+     *
+     * @return PatientResponse DTO
+     */
+    PatientResponse getCurrentPatientProfile();
+
+    /**
+     * Retrieves a patient profile by associated User ID.
+     *
+     * @param userId user account primary key
+     * @return PatientResponse DTO
+     */
+    PatientResponse getPatientByUserId(Long userId);
+
+    /**
+     * Retrieves a patient profile by associated User email.
+     *
+     * @param email user account email
+     * @return PatientResponse DTO
+     */
+    PatientResponse getPatientByUserEmail(String email);
+
+    /**
      * Deletes a patient profile and their associated User account from the database.
      *
      * @param id patient primary key

@@ -114,21 +114,58 @@ public class AppointmentServiceImpl implements AppointmentService {
 
     @Override
     public AppointmentResponse bookAppointment(AppointmentRequest request) {
+        if (request == null) {
+            throw new BadRequestException("Appointment request cannot be null");
+        }
+
         // Step 1: Find Doctor
         Doctor doctor = doctorRepository.findById(request.getDoctorId())
                 .orElseThrow(() -> new ResourceNotFoundException("Doctor not found with ID: " + request.getDoctorId()));
 
-        // Step 2: Find Patient
-        Patient patient = patientRepository.findById(request.getPatientId())
-                .orElseThrow(() -> new ResourceNotFoundException("Patient not found with ID: " + request.getPatientId()));
+        // Step 2: Resolve Patient securely based on authentication context
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        boolean isAuthenticated = authentication != null && authentication.isAuthenticated() && !"anonymousUser".equals(authentication.getName());
+        boolean isPatient = isAuthenticated && authentication.getAuthorities() != null &&
+                authentication.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_PATIENT"));
+        boolean isAdmin = isAuthenticated && authentication.getAuthorities() != null &&
+                authentication.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+        Patient patient;
+        if (isPatient) {
+            // Authenticated PATIENT: Always determine patient from current authenticated user
+            String email = authentication.getName();
+            patient = patientRepository.findByUser_Email(email)
+                    .orElseThrow(() -> new ResourceNotFoundException("Patient profile not found for user: " + email));
+
+            // Do NOT trust patientId supplied by frontend for PATIENT users
+            // Prevent a patient from booking an appointment using another patient's ID
+            request.setPatientId(patient.getId());
+        } else if (isAdmin) {
+            // ADMIN booking on behalf of a selected patient
+            if (request.getPatientId() == null) {
+                throw new BadRequestException("Patient ID is required");
+            }
+            patient = patientRepository.findById(request.getPatientId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Patient not found with ID: " + request.getPatientId()));
+        } else {
+            // Non-authenticated harness or test fallback where patientId is explicitly provided in request
+            if (request.getPatientId() == null) {
+                throw new BadRequestException("Patient ID is required");
+            }
+            patient = patientRepository.findById(request.getPatientId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Patient not found with ID: " + request.getPatientId()));
+        }
 
         // Step 3: Validate appointment date is today or in the future
-        if (request.getAppointmentDate().isBefore(LocalDate.now())) {
+        if (request.getAppointmentDate() == null || request.getAppointmentDate().isBefore(LocalDate.now())) {
             throw new BadRequestException("Appointment date must be today or in the future");
         }
 
         // Step 4: Validate appointment time is within doctor's available hours
         LocalTime time = request.getAppointmentTime();
+        if (time == null) {
+            throw new BadRequestException("Appointment time is required");
+        }
         if (time.isBefore(doctor.getAvailableFrom()) || time.isAfter(doctor.getAvailableTo())) {
             throw new BadRequestException("Selected time " + time + " is outside the doctor's available hours: "
                     + doctor.getAvailableFrom() + " to " + doctor.getAvailableTo());
@@ -154,7 +191,6 @@ public class AppointmentServiceImpl implements AppointmentService {
         if (hasPatientClash) {
             throw new BadRequestException("The patient already has an appointment booked on " + request.getAppointmentDate());
         }
-
 
         // Step 7: Create Appointment entity using Mapper
         Appointment appointment = appointmentMapper.toEntity(request, doctor, patient);
@@ -192,6 +228,37 @@ public class AppointmentServiceImpl implements AppointmentService {
         Patient patient = patientRepository.findById(patientId)
                 .orElseThrow(() -> new ResourceNotFoundException("Patient not found with ID: " + patientId));
 
+        // Security check: If caller is Patient (and not Admin), they can only view their own appointments
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getName())) {
+            boolean isAdmin = auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+            boolean isPatient = auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_PATIENT"));
+            if (isPatient && !isAdmin) {
+                String email = auth.getName();
+                if (patient.getUser() == null || !patient.getUser().getEmail().equalsIgnoreCase(email)) {
+                    throw new UnauthorizedException("You are not authorized to view another patient's appointments.");
+                }
+            }
+        }
+
+        List<Appointment> appointments = appointmentRepository.findByPatient(patient);
+        return appointments.stream()
+                .map(appointmentMapper::toResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<AppointmentResponse> getMyAppointmentsForPatient() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getName())) {
+            throw new UnauthorizedException("User is not authenticated. Please log in.");
+        }
+
+        String email = auth.getName();
+        Patient patient = patientRepository.findByUser_Email(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Patient profile not found for user: " + email));
+
         List<Appointment> appointments = appointmentRepository.findByPatient(patient);
         return appointments.stream()
                 .map(appointmentMapper::toResponse)
@@ -203,6 +270,37 @@ public class AppointmentServiceImpl implements AppointmentService {
     public List<AppointmentResponse> getAppointmentsByDoctor(Long doctorId) {
         Doctor doctor = doctorRepository.findById(doctorId)
                 .orElseThrow(() -> new ResourceNotFoundException("Doctor not found with ID: " + doctorId));
+
+        // Security check: If caller is a Doctor (and not Admin), they can only view their own appointments
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getName())) {
+            boolean isAdmin = auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+            boolean isDoctor = auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_DOCTOR"));
+            if (isDoctor && !isAdmin) {
+                String email = auth.getName();
+                if (doctor.getUser() == null || !doctor.getUser().getEmail().equalsIgnoreCase(email)) {
+                    throw new UnauthorizedException("You are not authorized to view another doctor's appointments.");
+                }
+            }
+        }
+
+        List<Appointment> appointments = appointmentRepository.findByDoctor(doctor);
+        return appointments.stream()
+                .map(appointmentMapper::toResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<AppointmentResponse> getMyAppointmentsForDoctor() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getName())) {
+            throw new UnauthorizedException("User is not authenticated. Please log in.");
+        }
+
+        String email = auth.getName();
+        Doctor doctor = doctorRepository.findByUser_Email(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Doctor profile not found for user: " + email));
 
         List<Appointment> appointments = appointmentRepository.findByDoctor(doctor);
         return appointments.stream()
@@ -241,6 +339,19 @@ public class AppointmentServiceImpl implements AppointmentService {
         Doctor doctor = doctorRepository.findById(doctorId)
                 .orElseThrow(() -> new ResourceNotFoundException("Doctor not found with ID: " + doctorId));
 
+        // Security check: If caller is a Doctor (and not Admin), verify ownership
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getName())) {
+            boolean isAdmin = auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+            boolean isDoctor = auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_DOCTOR"));
+            if (isDoctor && !isAdmin) {
+                String email = auth.getName();
+                if (doctor.getUser() == null || !doctor.getUser().getEmail().equalsIgnoreCase(email)) {
+                    throw new UnauthorizedException("You are not authorized to confirm appointments for another doctor.");
+                }
+            }
+        }
+
         List<Appointment> pendingAppointments = appointmentRepository.findByDoctorAndStatus(doctor, AppointmentStatus.PENDING);
         List<AppointmentResponse> confirmedList = new ArrayList<>();
 
@@ -252,6 +363,21 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         log.info("Doctor #{} confirmed {} pending appointment(s)", doctorId, confirmedList.size());
         return confirmedList;
+    }
+
+    @Override
+    @Transactional
+    public List<AppointmentResponse> confirmAllMyAppointments() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getName())) {
+            throw new UnauthorizedException("User is not authenticated. Please log in.");
+        }
+
+        String email = auth.getName();
+        Doctor doctor = doctorRepository.findByUser_Email(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Doctor profile not found for user: " + email));
+
+        return confirmAllAppointmentsByDoctor(doctor.getId());
     }
 
     @Override

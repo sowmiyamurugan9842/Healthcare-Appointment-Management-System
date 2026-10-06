@@ -43,12 +43,26 @@ public interface AppointmentService {
     List<AppointmentResponse> getAppointmentsByPatient(Long patientId);
 
     /**
+     * Retrieves all appointments booked by the currently authenticated patient.
+     *
+     * @return list of AppointmentResponse DTOs
+     */
+    List<AppointmentResponse> getMyAppointmentsForPatient();
+
+    /**
      * Retrieves all appointments assigned to a specific doctor.
      *
      * @param doctorId doctor primary key
      * @return list of AppointmentResponse DTOs
      */
     List<AppointmentResponse> getAppointmentsByDoctor(Long doctorId);
+
+    /**
+     * Retrieves all appointments assigned to the currently authenticated doctor.
+     *
+     * @return list of AppointmentResponse DTOs
+     */
+    List<AppointmentResponse> getMyAppointmentsForDoctor();
 
     /**
      * Retrieves all appointments filtered by status (PENDING, CONFIRMED, COMPLETED, CANCELLED).
@@ -75,6 +89,13 @@ public interface AppointmentService {
      * @return list of newly confirmed AppointmentResponse DTOs
      */
     List<AppointmentResponse> confirmAllAppointmentsByDoctor(Long doctorId);
+
+    /**
+     * Confirms all eligible PENDING appointments assigned to the currently authenticated doctor.
+     *
+     * @return list of newly confirmed AppointmentResponse DTOs
+     */
+    List<AppointmentResponse> confirmAllMyAppointments();
 
     /**
      * Cancels an appointment (transitions status to CANCELLED).

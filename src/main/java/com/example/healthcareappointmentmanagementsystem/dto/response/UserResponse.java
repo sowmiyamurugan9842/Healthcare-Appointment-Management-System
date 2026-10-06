@@ -21,4 +21,5 @@ public class UserResponse {
     private String phoneNumber;
     private Role role;
     private Boolean enabled;
+    private Long patientProfileId;
 }

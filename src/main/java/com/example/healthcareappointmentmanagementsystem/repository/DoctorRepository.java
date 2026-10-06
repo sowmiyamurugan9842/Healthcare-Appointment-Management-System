@@ -57,10 +57,34 @@ public interface DoctorRepository extends JpaRepository<Doctor, Long> {
     Optional<Doctor> findByUser(User user);
 
     /**
+     * Finds a doctor profile by their User's email address.
+     *
+     * @param email User email
+     * @return Optional containing the Doctor if found
+     */
+    Optional<Doctor> findByUser_Email(String email);
+
+    /**
+     * Finds a doctor profile by their User's ID.
+     *
+     * @param userId User primary key ID
+     * @return Optional containing the Doctor if found
+     */
+    Optional<Doctor> findByUser_Id(Long userId);
+
+    /**
      * Checks if a doctor profile exists for a given User account.
      *
      * @param user base User entity
      * @return true if doctor profile exists, false otherwise
      */
     boolean existsByUser(User user);
+
+    /**
+     * Checks if a doctor profile exists for a given User email.
+     *
+     * @param email User email
+     * @return true if doctor profile exists, false otherwise
+     */
+    boolean existsByUser_Email(String email);
 }

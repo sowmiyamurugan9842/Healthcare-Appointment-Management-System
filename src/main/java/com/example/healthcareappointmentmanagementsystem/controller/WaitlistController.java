@@ -48,7 +48,7 @@ public class WaitlistController {
             @ApiResponse(responseCode = "200", description = "Successfully retrieved patient waitlist"),
             @ApiResponse(responseCode = "401", description = "User not authenticated")
     })
-    @GetMapping("/waitlist/my")
+    @GetMapping({"/waitlist/my", "/waitlist/me"})
     public ResponseEntity<List<WaitlistResponse>> getMyWaitlist() {
         List<WaitlistResponse> responses = waitlistService.getMyWaitlist();
         return ResponseEntity.ok(responses);

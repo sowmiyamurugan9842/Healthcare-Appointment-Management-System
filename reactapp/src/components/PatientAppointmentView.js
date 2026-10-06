@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { appointmentAPI, prescriptionAPI, waitlistAPI } from '../services/api';
+import { appointmentAPI, prescriptionAPI, waitlistAPI, patientAPI } from '../services/api';
 import { Link } from 'react-router-dom';
 import PrescriptionView from './PrescriptionView';
 
@@ -11,8 +11,7 @@ function PatientAppointmentView({ user }) {
   const [waitlistLoading, setWaitlistLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
-  const [patientId, setPatientId] = useState('');
-  const [isPatientLinked, setIsPatientLinked] = useState(false);
+  const [patientProfile, setPatientProfile] = useState(null);
   const [filterStatus, setFilterStatus] = useState('ALL');
 
   // Prescription modal state
@@ -21,30 +20,19 @@ function PatientAppointmentView({ user }) {
 
   const isPatient = user && user.role === 'PATIENT';
 
-  useEffect(() => {
-    if (isPatient) {
-      const cachedUser = JSON.parse(localStorage.getItem('user') || '{}');
-      if (cachedUser.patientId) {
-        setPatientId(cachedUser.patientId);
-        setIsPatientLinked(true);
-      }
-    }
-  }, [isPatient]);
-
   const loadAppointments = useCallback(async () => {
-    if (!patientId) return;
     setLoading(true);
     setErrorMessage('');
     try {
-      const data = await appointmentAPI.getByPatient(patientId);
+      const data = await appointmentAPI.getMyPatientAppointments();
       setAppointments(data || []);
     } catch (err) {
       console.error('Failed to load patient appointments:', err);
-      setErrorMessage(err.response?.data?.message || 'Failed to retrieve appointments. Verify your Patient ID.');
+      setErrorMessage(err.response?.data?.message || 'Failed to retrieve appointments.');
     } finally {
       setLoading(false);
     }
-  }, [patientId]);
+  }, []);
 
   const loadWaitlist = useCallback(async () => {
     setWaitlistLoading(true);
@@ -58,33 +46,22 @@ function PatientAppointmentView({ user }) {
     }
   }, []);
 
+  const refreshAll = useCallback(() => {
+    loadAppointments();
+    loadWaitlist();
+  }, [loadAppointments, loadWaitlist]);
+
   useEffect(() => {
-    if (isPatientLinked && patientId) {
+    if (isPatient) {
+      patientAPI.getMe().then((profile) => {
+        if (profile) setPatientProfile(profile);
+      }).catch((err) => {
+        console.debug('No patient profile found:', err);
+      });
       loadAppointments();
       loadWaitlist();
     }
-  }, [isPatientLinked, patientId, loadAppointments, loadWaitlist]);
-
-  const handleLinkPatient = (e) => {
-    e.preventDefault();
-    if (!patientId) return;
-
-    const cachedUser = JSON.parse(localStorage.getItem('user') || '{}');
-    cachedUser.patientId = patientId;
-    localStorage.setItem('user', JSON.stringify(cachedUser));
-
-    setIsPatientLinked(true);
-  };
-
-  const handleUnlinkPatient = () => {
-    const cachedUser = JSON.parse(localStorage.getItem('user') || '{}');
-    delete cachedUser.patientId;
-    localStorage.setItem('user', JSON.stringify(cachedUser));
-
-    setIsPatientLinked(false);
-    setPatientId('');
-    setAppointments([]);
-  };
+  }, [isPatient, loadAppointments, loadWaitlist]);
 
   const handleCancelAppointment = async (appointmentId) => {
     if (!window.confirm('Are you sure you want to cancel this scheduled appointment?')) return;
@@ -197,142 +174,109 @@ function PatientAppointmentView({ user }) {
       <div className="page-header">
         <div className="page-title-group">
           <h1>My Medical Care & Schedule</h1>
-          <p>Track scheduled consultations, waiting list positions, and digital medical records.</p>
+          <p>
+            {patientProfile?.firstName
+              ? `Appointments and care plan for ${patientProfile.firstName} ${patientProfile.lastName || ''}`.trim()
+              : (user?.firstName ? `Appointments and care plan for ${user.firstName} ${user.lastName || ''}`.trim() : 'Track scheduled consultations, waiting list positions, and digital medical records.')}
+          </p>
         </div>
 
-        {isPatientLinked && (
-          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-            <Link to="/patient-prescriptions" className="btn btn-secondary">
-              💊 My Prescriptions
-            </Link>
-            <Link to="/appointments/book" className="btn btn-primary">
-              + Book New Visit
-            </Link>
-          </div>
-        )}
+        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <button onClick={refreshAll} disabled={loading || waitlistLoading} className="btn btn-secondary">
+            {loading ? 'Refreshing...' : '↻ Refresh Log'}
+          </button>
+          <Link to="/patient-prescriptions" className="btn btn-secondary">
+            💊 My Prescriptions
+          </Link>
+          <Link to="/appointments/book" className="btn btn-primary">
+            + Book New Visit
+          </Link>
+        </div>
       </div>
 
       {errorMessage && <div className="alert alert-danger">⚠️ {errorMessage}</div>}
       {successMessage && <div className="alert alert-success">{successMessage}</div>}
 
-      {/* UNLINKED PATIENT PROFILE ID PROMPT */}
-      {!isPatientLinked && (
-        <div style={{ maxWidth: '480px', margin: '2rem auto', textAlign: 'center' }} className="card">
-          <div className="empty-state-icon">👤</div>
-          <h3>Link Patient Profile ID</h3>
-          <p style={{ margin: '0.75rem 0 1.5rem', fontSize: '0.9rem' }}>
-            To safeguard your personal medical data, please enter your Patient Profile ID (assigned to your medical file by the hospital).
-          </p>
-          <form onSubmit={handleLinkPatient}>
-            <div className="form-group">
-              <label className="form-label" htmlFor="patientIdInput">Patient Profile ID</label>
-              <input
-                id="patientIdInput"
-                type="number"
-                required
-                className="form-control"
-                placeholder="e.g. 4"
-                value={patientId}
-                onChange={(e) => setPatientId(e.target.value)}
-              />
-            </div>
-            <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
-              Load My Appointments
-            </button>
-          </form>
-        </div>
-      )}
-
       {/* MAIN TABS & CONTENT */}
-      {isPatientLinked && (
-        <>
-          {/* TAB BAR */}
-          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', borderBottom: '2px solid #e2e8f0', paddingBottom: '0.5rem' }}>
-            <button
-              onClick={() => setActiveTab('appointments')}
-              className={`btn ${activeTab === 'appointments' ? 'btn-primary' : 'btn-secondary'}`}
-              style={{ padding: '0.5rem 1.25rem', borderRadius: '8px', fontWeight: 600 }}
-            >
-              📅 My Appointments ({appointments.length})
-            </button>
-            <button
-              onClick={() => setActiveTab('waitlist')}
-              className={`btn ${activeTab === 'waitlist' ? 'btn-primary' : 'btn-secondary'}`}
-              style={{
-                padding: '0.5rem 1.25rem',
-                borderRadius: '8px',
-                fontWeight: 600,
-                position: 'relative'
-              }}
-            >
-              📋 My Waitlist ({waitlistEntries.length})
-              {activeWaitlistCount > 0 && (
-                <span style={{
-                  marginLeft: '0.5rem',
-                  backgroundColor: '#f59e0b',
-                  color: '#fff',
-                  borderRadius: '12px',
-                  padding: '2px 7px',
-                  fontSize: '0.75rem'
-                }}>
-                  {activeWaitlistCount} active
-                </span>
-              )}
-            </button>
-          </div>
+      <div>
+        {/* TAB BAR */}
+        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', borderBottom: '2px solid #e2e8f0', paddingBottom: '0.5rem' }}>
+          <button
+            onClick={() => setActiveTab('appointments')}
+            className={`btn ${activeTab === 'appointments' ? 'btn-primary' : 'btn-secondary'}`}
+            style={{ padding: '0.5rem 1.25rem', borderRadius: '8px', fontWeight: 600 }}
+          >
+            📅 My Appointments ({appointments.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('waitlist')}
+            className={`btn ${activeTab === 'waitlist' ? 'btn-primary' : 'btn-secondary'}`}
+            style={{
+              padding: '0.5rem 1.25rem',
+              borderRadius: '8px',
+              fontWeight: 600,
+              position: 'relative'
+            }}
+          >
+            📋 My Waitlist ({waitlistEntries.length})
+            {activeWaitlistCount > 0 && (
+              <span style={{
+                marginLeft: '0.5rem',
+                backgroundColor: '#f59e0b',
+                color: '#fff',
+                borderRadius: '12px',
+                padding: '2px 7px',
+                fontSize: '0.75rem'
+              }}>
+                {activeWaitlistCount} active
+              </span>
+            )}
+          </button>
+        </div>
 
-          {/* TAB 1: APPOINTMENTS */}
-          {activeTab === 'appointments' && (
-            <div className="card">
-              <div className="filter-bar" style={{ justifyContent: 'space-between' }}>
-                <div className="filter-group">
-                  <label className="form-label" style={{ marginBottom: 0, marginRight: '0.35rem' }} htmlFor="filterTab">
-                    Filter:
-                  </label>
-                  <select
-                    id="filterTab"
-                    className="form-control"
-                    style={{ width: 'auto', padding: '0.45rem 0.85rem' }}
-                    value={filterStatus}
-                    onChange={(e) => setFilterStatus(e.target.value)}
-                  >
-                    <option value="ALL">All Visits ({appointments.length})</option>
-                    <option value="UPCOMING">Upcoming / Active</option>
-                    <option value="COMPLETED">Completed Visits</option>
-                    <option value="NO_SHOW">No-Show Records</option>
-                    <option value="EXPIRED">Expired Visits</option>
-                    <option value="CANCELLED">Cancelled / Closed</option>
-                  </select>
-                </div>
-
-                <button
-                  onClick={handleUnlinkPatient}
-                  className="btn btn-secondary"
-                  style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}
-                  title="Unlink current Patient Profile ID"
+        {/* TAB 1: APPOINTMENTS */}
+        {activeTab === 'appointments' && (
+          <div className="card">
+            <div className="filter-bar" style={{ justifyContent: 'space-between' }}>
+              <div className="filter-group">
+                <label className="form-label" style={{ marginBottom: 0, marginRight: '0.35rem' }} htmlFor="filterTab">
+                  Filter:
+                </label>
+                <select
+                  id="filterTab"
+                  className="form-control"
+                  style={{ width: 'auto', padding: '0.45rem 0.85rem' }}
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
                 >
-                  Unlink ID (#{patientId})
-                </button>
+                  <option value="ALL">All Visits ({appointments.length})</option>
+                  <option value="UPCOMING">Upcoming / Active</option>
+                  <option value="COMPLETED">Completed Visits</option>
+                  <option value="NO_SHOW">No-Show Records</option>
+                  <option value="EXPIRED">Expired Visits</option>
+                  <option value="CANCELLED">Cancelled / Closed</option>
+                </select>
               </div>
+            </div>
 
-              {loading ? (
-                <div className="empty-state-box">
-                  <div className="empty-state-icon">⏳</div>
-                  <div className="empty-state-title">Retrieving Medical Appointments...</div>
+            {loading ? (
+              <div className="empty-state-box">
+                <div className="empty-state-icon">⏳</div>
+                <div className="empty-state-title">Retrieving Medical Appointments...</div>
+              </div>
+            ) : filteredAppointments.length === 0 ? (
+              <div className="empty-state-box">
+                <div className="empty-state-icon">📅</div>
+                <div className="empty-state-title">No Appointments Found</div>
+                <div className="empty-state-desc">
+                  {filterStatus !== 'ALL'
+                    ? 'No records match the current filter selection.'
+                    : 'No appointments are currently booked.'}
                 </div>
-              ) : filteredAppointments.length === 0 ? (
-                <div className="empty-state-box">
-                  <div className="empty-state-icon">📅</div>
-                  <div className="empty-state-title">No Appointments Found</div>
-                  <div className="empty-state-desc">
-                    {filterStatus !== 'ALL'
-                      ? 'No records match the current filter selection.'
-                      : `No appointments are currently booked under Patient ID #${patientId}.`}
-                  </div>
-                  <Link to="/appointments/book" className="btn btn-primary" style={{ marginTop: '0.75rem' }}>
-                    Book Your First Visit
-                  </Link>
-                </div>
+                <Link to="/appointments/book" className="btn btn-primary" style={{ marginTop: '0.75rem' }}>
+                  Book Your First Visit
+                </Link>
+              </div>
               ) : (
                 <div className="table-container">
                   <table className="table">
@@ -622,8 +566,7 @@ function PatientAppointmentView({ user }) {
               )}
             </div>
           )}
-        </>
-      )}
+        </div>
 
       {/* PRESCRIPTION MODAL (USES REACT PORTAL) */}
       {viewingPrescription && (

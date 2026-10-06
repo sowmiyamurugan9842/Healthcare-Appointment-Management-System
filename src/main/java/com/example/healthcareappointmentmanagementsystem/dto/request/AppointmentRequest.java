@@ -22,7 +22,8 @@ public class AppointmentRequest {
     @NotNull(message = "Doctor ID is required")
     private Long doctorId;
 
-    @NotNull(message = "Patient ID is required")
+    // Patient ID is optional in the incoming request for PATIENT users (resolved automatically from auth context).
+    // For ADMIN bookings, presence of patientId is validated in the service layer.
     private Long patientId;
 
     @NotNull(message = "Appointment date is required")

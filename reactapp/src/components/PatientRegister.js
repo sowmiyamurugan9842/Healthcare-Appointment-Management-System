@@ -27,9 +27,9 @@ function PatientRegister() {
     medicalHistory: ''
   });
 
+  const [registeredResult, setRegisteredResult] = useState(null);
   const [errors, setErrors] = useState({});
   const [errorMessage, setErrorMessage] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
@@ -99,38 +99,43 @@ function PatientRegister() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMessage('');
-    setSuccessMessage('');
 
     if (!validate()) return;
 
     setLoading(true);
     try {
-      let finalUserId = profileForm.userId;
+      let finalUserId;
+      let finalPatientProfileId;
 
       if (!useExistingUser) {
         const userDigitsPhone = userForm.phoneNumber.replace(/\D/g, '');
         const userRes = await authAPI.register({
           ...userForm,
-          phoneNumber: userDigitsPhone
+          ...profileForm,
+          phoneNumber: userDigitsPhone,
+          role: 'PATIENT'
         });
         finalUserId = userRes.id;
+        finalPatientProfileId = userRes.patientProfileId;
+      } else {
+        finalUserId = Number(profileForm.userId);
+        const patientRes = await patientAPI.create({
+          userId: finalUserId,
+          dateOfBirth: profileForm.dateOfBirth,
+          gender: profileForm.gender,
+          bloodGroup: profileForm.bloodGroup,
+          address: profileForm.address,
+          emergencyContact: profileForm.emergencyContact,
+          allergies: profileForm.allergies,
+          medicalHistory: profileForm.medicalHistory
+        });
+        finalPatientProfileId = patientRes.id;
       }
 
-      await patientAPI.create({
+      setRegisteredResult({
         userId: finalUserId,
-        dateOfBirth: profileForm.dateOfBirth,
-        gender: profileForm.gender,
-        bloodGroup: profileForm.bloodGroup,
-        address: profileForm.address,
-        emergencyContact: profileForm.emergencyContact,
-        allergies: profileForm.allergies,
-        medicalHistory: profileForm.medicalHistory
+        patientProfileId: finalPatientProfileId
       });
-
-      setSuccessMessage('Patient medical profile registered successfully!');
-      setTimeout(() => {
-        navigate('/patients');
-      }, 1500);
     } catch (error) {
       console.error('Failed to register patient profile:', error);
       const msg = error.response?.data?.message || error.response?.data || 'Failed to create patient profile';
@@ -138,6 +143,30 @@ function PatientRegister() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const resetForm = () => {
+    setRegisteredResult(null);
+    setUserForm({
+      firstName: '',
+      lastName: '',
+      email: '',
+      password: '',
+      phoneNumber: '',
+      role: 'PATIENT'
+    });
+    setProfileForm({
+      userId: '',
+      dateOfBirth: '',
+      gender: 'MALE',
+      bloodGroup: 'A_POSITIVE',
+      address: '',
+      emergencyContact: '',
+      allergies: '',
+      medicalHistory: ''
+    });
+    setErrors({});
+    setErrorMessage('');
   };
 
   return (
@@ -150,9 +179,107 @@ function PatientRegister() {
       </div>
 
       {errorMessage && <div className="alert alert-danger">⚠️ {errorMessage}</div>}
-      {successMessage && <div className="alert alert-success">✓ {successMessage}</div>}
 
-      <div className="card">
+      {registeredResult ? (
+        /* SUCCESS RESULT CARD */
+        <div className="card" style={{ textAlign: 'center', padding: '2.5rem 2rem' }}>
+          <div
+            style={{
+              width: '68px',
+              height: '68px',
+              borderRadius: '50%',
+              backgroundColor: 'var(--success-bg)',
+              color: 'var(--success)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '2.5rem',
+              margin: '0 auto 1.25rem auto'
+            }}
+          >
+            ✓
+          </div>
+
+          <h2 style={{ color: 'var(--primary-dark)', fontSize: '1.6rem', marginBottom: '0.5rem' }}>
+            Patient Registration Successful
+          </h2>
+          <p style={{ color: 'var(--text-secondary)', marginBottom: '1.75rem', fontSize: '0.95rem' }}>
+            The patient account and electronic health record have been registered in the hospital database.
+          </p>
+
+          <div
+            style={{
+              backgroundColor: 'var(--bg-main)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: '12px',
+              padding: '1.5rem',
+              maxWidth: '440px',
+              margin: '0 auto 1.5rem auto',
+              textAlign: 'left'
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '1rem',
+                paddingBottom: '0.75rem',
+                borderBottom: '1px solid var(--border-subtle)'
+              }}
+            >
+              <div>
+                <span style={{ fontWeight: 600, color: 'var(--text-main)', display: 'block' }}>User ID</span>
+                <small style={{ color: 'var(--text-secondary)' }}>Used for login with User ID</small>
+              </div>
+              <span style={{ fontWeight: 700, fontSize: '1.4rem', color: 'var(--primary-dark)' }}>
+                {registeredResult.userId}
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <span style={{ fontWeight: 600, color: 'var(--text-main)', display: 'block' }}>Patient Profile ID</span>
+                <small style={{ color: 'var(--text-secondary)' }}>Hospital clinical record ID</small>
+              </div>
+              <span style={{ fontWeight: 700, fontSize: '1.4rem', color: 'var(--text-main)' }}>
+                {registeredResult.patientProfileId}
+              </span>
+            </div>
+          </div>
+
+          <div
+            className="alert alert-info"
+            style={{
+              textAlign: 'left',
+              fontSize: '0.88rem',
+              maxWidth: '480px',
+              margin: '0 auto 1.75rem auto',
+              lineHeight: 1.5
+            }}
+          >
+            💡 <strong>Please save your User ID:</strong> The patient should save their <strong>User ID ({registeredResult.userId})</strong> for logging into the portal with their password. The Patient Profile ID is stored for administrative & reference use.
+          </div>
+
+          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+            <button
+              onClick={resetForm}
+              className="btn btn-primary"
+              style={{ padding: '0.65rem 1.5rem', fontWeight: 600 }}
+            >
+              + Register Another Patient
+            </button>
+            <button
+              onClick={() => navigate('/patients')}
+              className="btn btn-secondary"
+              style={{ padding: '0.65rem 1.5rem' }}
+            >
+              View All Patients
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="card">
         {/* MODE TOGGLE */}
         <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.75rem', justifyContent: 'center' }}>
           <button
@@ -398,6 +525,7 @@ function PatientRegister() {
           </button>
         </form>
       </div>
+      )}
     </div>
   );
 }

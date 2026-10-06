@@ -54,6 +54,18 @@ public class PatientController {
     }
 
     /**
+     * Endpoint to retrieve the patient profile belonging to the currently authenticated user.
+     * Maps to GET /api/patients/me.
+     * Access: PATIENT only.
+     */
+    @GetMapping("/me")
+    @PreAuthorize("hasRole('PATIENT')")
+    public ResponseEntity<PatientResponse> getCurrentPatientProfile() {
+        PatientResponse response = patientService.getCurrentPatientProfile();
+        return ResponseEntity.ok(response);
+    }
+
+    /**
      * Endpoint to retrieve a specific patient profile by ID.
      * Maps to GET /api/patients/{id}.
      * Access: ADMIN or PATIENT.

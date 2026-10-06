@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { appointmentAPI, prescriptionAPI } from '../services/api';
+import { appointmentAPI, prescriptionAPI, doctorAPI } from '../services/api';
 import { Link } from 'react-router-dom';
 import PrescriptionForm from './PrescriptionForm';
 import PrescriptionView from './PrescriptionView';
@@ -7,6 +7,7 @@ import AppointmentDetailsModal from './AppointmentDetailsModal';
 
 function AppointmentList({ user }) {
   const [appointments, setAppointments] = useState([]);
+  const [doctorProfile, setDoctorProfile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
@@ -21,22 +22,8 @@ function AppointmentList({ user }) {
   const [viewingPrescription, setViewingPrescription] = useState(null);
   const [loadingPrescriptionId, setLoadingPrescriptionId] = useState(null);
 
-  // For DOCTOR role: doctorId linking
-  const [doctorId, setDoctorId] = useState('');
-  const [isDoctorLinked, setIsDoctorLinked] = useState(false);
-
   const isAdmin = user && user.role === 'ADMIN';
   const isDoctor = user && user.role === 'DOCTOR';
-
-  useEffect(() => {
-    if (isDoctor) {
-      const cachedUser = JSON.parse(localStorage.getItem('user') || '{}');
-      if (cachedUser.doctorId) {
-        setDoctorId(cachedUser.doctorId);
-        setIsDoctorLinked(true);
-      }
-    }
-  }, [isDoctor]);
 
   const loadAppointments = useCallback(async () => {
     setLoading(true);
@@ -45,8 +32,18 @@ function AppointmentList({ user }) {
       let data = [];
       if (isAdmin) {
         data = await appointmentAPI.getAll();
-      } else if (isDoctor && isDoctorLinked && doctorId) {
-        data = await appointmentAPI.getByDoctor(doctorId);
+      } else if (isDoctor) {
+        const [profile, appts] = await Promise.all([
+          doctorAPI.getMe().catch((err) => {
+            console.warn('Could not fetch doctor profile details:', err);
+            return null;
+          }),
+          appointmentAPI.getMyDoctorAppointments()
+        ]);
+        if (profile) {
+          setDoctorProfile(profile);
+        }
+        data = appts;
       }
       setAppointments(data || []);
     } catch (err) {
@@ -55,35 +52,13 @@ function AppointmentList({ user }) {
     } finally {
       setLoading(false);
     }
-  }, [isAdmin, isDoctor, isDoctorLinked, doctorId]);
+  }, [isAdmin, isDoctor]);
 
   useEffect(() => {
-    if (isAdmin || (isDoctor && isDoctorLinked)) {
+    if (isAdmin || isDoctor) {
       loadAppointments();
     }
-  }, [isAdmin, isDoctor, isDoctorLinked, loadAppointments]);
-
-  const handleLinkDoctor = (e) => {
-    e.preventDefault();
-    if (!doctorId) return;
-
-    const cachedUser = JSON.parse(localStorage.getItem('user') || '{}');
-    cachedUser.doctorId = doctorId;
-    localStorage.setItem('user', JSON.stringify(cachedUser));
-
-    setIsDoctorLinked(true);
-    loadAppointments();
-  };
-
-  const handleUnlinkDoctor = () => {
-    const cachedUser = JSON.parse(localStorage.getItem('user') || '{}');
-    delete cachedUser.doctorId;
-    localStorage.setItem('user', JSON.stringify(cachedUser));
-
-    setIsDoctorLinked(false);
-    setDoctorId('');
-    setAppointments([]);
-  };
+  }, [isAdmin, isDoctor, loadAppointments]);
 
   const handleStatusChange = async (appointmentId, newStatus) => {
     setErrorMessage('');
@@ -135,16 +110,10 @@ function AppointmentList({ user }) {
     setSuccessMessage('');
 
     try {
-      if (doctorId) {
-        try {
-          await appointmentAPI.confirmAll(doctorId);
-        } catch (apiErr) {
-          console.warn('Batch confirm-all endpoint fallback to individual calls:', apiErr);
-          await Promise.all(
-            pendingAppointments.map((appt) => appointmentAPI.updateStatus(appt.id, 'APPROVED'))
-          );
-        }
-      } else {
+      try {
+        await appointmentAPI.confirmAllMy();
+      } catch (apiErr) {
+        console.warn('Batch confirm-all endpoint fallback to individual calls:', apiErr);
         await Promise.all(
           pendingAppointments.map((appt) => appointmentAPI.updateStatus(appt.id, 'APPROVED'))
         );
@@ -247,121 +216,85 @@ function AppointmentList({ user }) {
           <p>
             {isAdmin 
               ? 'Administrator View: Comprehensive clinical schedule and consultation management.'
-              : `Doctor View: Appointments scheduled for Doctor Profile ID #${doctorId}`}
+              : `Appointments scheduled for Dr. ${
+                  doctorProfile?.fullName
+                    ? doctorProfile.fullName.replace(/^Dr\.\s*/i, '')
+                    : (doctorProfile?.user?.firstName
+                        ? `${doctorProfile.user.firstName} ${doctorProfile.user.lastName}`
+                        : (user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : (user?.email?.split('@')[0] || 'Doctor')))
+                }`}
           </p>
         </div>
 
-        {(isAdmin || (isDoctor && isDoctorLinked)) && (
-          <div style={{ display: 'flex', gap: '0.75rem' }}>
-            <button onClick={loadAppointments} disabled={loading} className="btn btn-secondary">
-              {loading ? 'Refreshing...' : '↻ Refresh Log'}
-            </button>
-          </div>
-        )}
+        <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <button onClick={loadAppointments} disabled={loading} className="btn btn-secondary">
+            {loading ? 'Refreshing...' : '↻ Refresh Log'}
+          </button>
+        </div>
       </div>
 
       {errorMessage && <div className="alert alert-danger">⚠️ {errorMessage}</div>}
       {successMessage && <div className="alert alert-success">✓ {successMessage}</div>}
 
-      {/* DOCTOR ID UNLINKED VIEW */}
-      {isDoctor && !isDoctorLinked && (
-        <div style={{ maxWidth: '480px', margin: '2rem auto', textAlign: 'center' }} className="card">
-          <div className="empty-state-icon">🩺</div>
-          <h3>Link Doctor Profile ID</h3>
-          <p style={{ margin: '0.75rem 0 1.5rem', fontSize: '0.9rem' }}>
-            Please enter your Doctor Profile ID (created by the administrator) to load your shift appointments.
-          </p>
-          <form onSubmit={handleLinkDoctor}>
-            <div className="form-group">
-              <label className="form-label" htmlFor="docIdInput">Doctor Profile ID</label>
-              <input
-                id="docIdInput"
-                type="number"
-                required
-                className="form-control"
-                placeholder="e.g. 4"
-                value={doctorId}
-                onChange={(e) => setDoctorId(e.target.value)}
-              />
-            </div>
-            <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
-              Load My Schedule
-            </button>
-          </form>
-        </div>
-      )}
-
       {/* APPOINTMENTS TABLE & FILTERS */}
-      {(isAdmin || (isDoctor && isDoctorLinked)) && (
-        <div className="card">
-          {/* TOOLBAR */}
-          <div className="filter-bar" style={{ justifyContent: 'space-between' }}>
-            <div className="filter-group" style={{ flex: '1 1 280px' }}>
-              <input
-                type="text"
-                className="form-control"
-                placeholder="Search patient, doctor, reason, or Appt ID..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-
-            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-              <div className="filter-group">
-                <label className="form-label" style={{ marginBottom: 0, marginRight: '0.25rem' }} htmlFor="statusFilter">
-                  Status:
-                </label>
-                <select
-                  id="statusFilter"
-                  className="form-control"
-                  style={{ width: 'auto', padding: '0.5rem 0.85rem' }}
-                  value={selectedStatusFilter}
-                  onChange={(e) => setSelectedStatusFilter(e.target.value)}
-                >
-                  <option value="ALL">All Statuses ({appointments.length})</option>
-                  <option value="PENDING">Pending</option>
-                  <option value="APPROVED">Approved / Confirmed</option>
-                  <option value="COMPLETED">Completed</option>
-                  <option value="NO_SHOW">No-Show</option>
-                  <option value="EXPIRED">Expired</option>
-                  <option value="REJECTED">Cancelled / Rejected</option>
-                </select>
-              </div>
-
-              {isDoctor && (
-                <button
-                  type="button"
-                  onClick={handleConfirmAll}
-                  disabled={loading || pendingCount === 0}
-                  className="btn btn-success"
-                  style={{
-                    padding: '0.45rem 0.85rem',
-                    fontSize: '0.82rem',
-                    fontWeight: 600,
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.35rem',
-                    opacity: pendingCount === 0 ? 0.6 : 1,
-                    cursor: pendingCount === 0 ? 'not-allowed' : 'pointer'
-                  }}
-                  title={pendingCount === 0 ? 'No pending appointments to confirm.' : `Confirm all ${pendingCount} pending appointment(s)`}
-                >
-                  <span>✅</span> Confirm All {pendingCount > 0 ? `(${pendingCount})` : ''}
-                </button>
-              )}
-
-              {isDoctor && (
-                <button
-                  onClick={handleUnlinkDoctor}
-                  className="btn btn-secondary"
-                  style={{ padding: '0.45rem 0.75rem', fontSize: '0.8rem' }}
-                  title="Unlink current doctor profile ID"
-                >
-                  Unlink ID (#{doctorId})
-                </button>
-              )}
-            </div>
+      <div className="card">
+        {/* TOOLBAR */}
+        <div className="filter-bar" style={{ justifyContent: 'space-between' }}>
+          <div className="filter-group" style={{ flex: '1 1 280px' }}>
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Search patient, doctor, reason, or Appt ID..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
           </div>
+
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div className="filter-group">
+              <label className="form-label" style={{ marginBottom: 0, marginRight: '0.25rem' }} htmlFor="statusFilter">
+                Status:
+              </label>
+              <select
+                id="statusFilter"
+                className="form-control"
+                style={{ width: 'auto', padding: '0.5rem 0.85rem' }}
+                value={selectedStatusFilter}
+                onChange={(e) => setSelectedStatusFilter(e.target.value)}
+              >
+                <option value="ALL">All Statuses ({appointments.length})</option>
+                <option value="PENDING">Pending</option>
+                <option value="APPROVED">Approved / Confirmed</option>
+                <option value="COMPLETED">Completed</option>
+                <option value="NO_SHOW">No-Show</option>
+                <option value="EXPIRED">Expired</option>
+                <option value="REJECTED">Cancelled / Rejected</option>
+              </select>
+            </div>
+
+            {isDoctor && (
+              <button
+                type="button"
+                onClick={handleConfirmAll}
+                disabled={loading || pendingCount === 0}
+                className="btn btn-success"
+                style={{
+                  padding: '0.45rem 0.85rem',
+                  fontSize: '0.82rem',
+                  fontWeight: 600,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  opacity: pendingCount === 0 ? 0.6 : 1,
+                  cursor: pendingCount === 0 ? 'not-allowed' : 'pointer'
+                }}
+                title={pendingCount === 0 ? 'No pending appointments to confirm.' : `Confirm all ${pendingCount} pending appointment(s)`}
+              >
+                <span>✅</span> Confirm All {pendingCount > 0 ? `(${pendingCount})` : ''}
+              </button>
+            )}
+          </div>
+        </div>
 
           {/* TABLE CONTENT */}
           {loading ? (

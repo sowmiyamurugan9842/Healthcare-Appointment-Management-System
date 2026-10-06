@@ -15,9 +15,10 @@ import lombok.*;
 @Builder
 public class LoginRequest {
 
-    @NotBlank(message = "Email is required")
-    @Email(message = "Invalid email format")
+    @NotBlank(message = "Email or User ID is required")
     private String email;
+
+    private Long userId;
 
     @NotBlank(message = "Password is required")
     @Size(min = 6, message = "Password must be at least 6 characters")

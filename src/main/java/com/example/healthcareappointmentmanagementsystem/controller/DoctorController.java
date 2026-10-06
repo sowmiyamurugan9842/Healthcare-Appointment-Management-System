@@ -56,6 +56,18 @@ public class DoctorController {
     }
 
     /**
+     * Endpoint to retrieve the doctor profile belonging to the currently authenticated user.
+     * Maps to GET /api/doctors/me.
+     * Access: DOCTOR only.
+     */
+    @GetMapping("/me")
+    @PreAuthorize("hasRole('DOCTOR')")
+    public ResponseEntity<DoctorResponse> getCurrentDoctorProfile() {
+        DoctorResponse response = doctorService.getCurrentDoctorProfile();
+        return ResponseEntity.ok(response);
+    }
+
+    /**
      * Endpoint to retrieve a specific doctor profile by ID.
      * Maps to GET /api/doctors/{id}.
      * Access: ADMIN, DOCTOR, PATIENT.

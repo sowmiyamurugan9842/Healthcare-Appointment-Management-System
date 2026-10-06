@@ -13,9 +13,15 @@ public interface NotificationService {
 
     List<NotificationResponse> getNotificationsByPatient(Long patientId);
 
+    List<NotificationResponse> getMyNotifications();
+
     NotificationResponse markAsRead(Long notificationId);
 
     void markAllAsRead(Long patientId);
+
+    void markAllMyAsRead();
+
+    long getMyUnreadCount();
 
     Notification createAppointmentReminder(Appointment appointment);
 

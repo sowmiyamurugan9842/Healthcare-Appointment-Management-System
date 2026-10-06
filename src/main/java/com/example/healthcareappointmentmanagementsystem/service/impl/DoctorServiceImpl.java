@@ -11,12 +11,15 @@ import com.example.healthcareappointmentmanagementsystem.entity.User;
 import com.example.healthcareappointmentmanagementsystem.exception.BadRequestException;
 import com.example.healthcareappointmentmanagementsystem.exception.DuplicateResourceException;
 import com.example.healthcareappointmentmanagementsystem.exception.ResourceNotFoundException;
+import com.example.healthcareappointmentmanagementsystem.exception.UnauthorizedException;
 import com.example.healthcareappointmentmanagementsystem.mapper.DoctorMapper;
 import com.example.healthcareappointmentmanagementsystem.repository.AppointmentRepository;
 import com.example.healthcareappointmentmanagementsystem.repository.DepartmentRepository;
 import com.example.healthcareappointmentmanagementsystem.repository.DoctorRepository;
 import com.example.healthcareappointmentmanagementsystem.repository.UserRepository;
 import com.example.healthcareappointmentmanagementsystem.service.DoctorService;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -216,6 +219,37 @@ public class DoctorServiceImpl implements DoctorService {
                 .date(date)
                 .availableSlots(availableSlots)
                 .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public DoctorResponse getCurrentDoctorProfile() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getName())) {
+            throw new UnauthorizedException("User is not authenticated. Please log in.");
+        }
+
+        String email = auth.getName();
+        Doctor doctor = doctorRepository.findByUser_Email(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Doctor profile not found for user: " + email));
+
+        return doctorMapper.toResponse(doctor);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public DoctorResponse getDoctorByUserId(Long userId) {
+        Doctor doctor = doctorRepository.findByUser_Id(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Doctor profile not found for user ID: " + userId));
+        return doctorMapper.toResponse(doctor);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public DoctorResponse getDoctorByUserEmail(String email) {
+        Doctor doctor = doctorRepository.findByUser_Email(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Doctor profile not found for email: " + email));
+        return doctorMapper.toResponse(doctor);
     }
 }
 

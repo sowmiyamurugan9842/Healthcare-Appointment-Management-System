@@ -29,9 +29,9 @@ function DoctorRegister() {
     availableTo: '17:00'
   });
 
+  const [registeredResult, setRegisteredResult] = useState(null);
   const [errors, setErrors] = useState({});
   const [errorMessage, setErrorMessage] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
@@ -130,7 +130,6 @@ function DoctorRegister() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMessage('');
-    setSuccessMessage('');
 
     if (!validate()) return;
 
@@ -154,8 +153,8 @@ function DoctorRegister() {
         return timeStr;
       };
 
-      await doctorAPI.create({
-        userId: finalUserId,
+      const docRes = await doctorAPI.create({
+        userId: Number(finalUserId),
         departmentId: Number(profileForm.departmentId),
         qualification: profileForm.qualification,
         specialization: profileForm.specialization,
@@ -165,10 +164,10 @@ function DoctorRegister() {
         availableTo: formatTime(profileForm.availableTo)
       });
 
-      setSuccessMessage('Doctor professional profile registered successfully!');
-      setTimeout(() => {
-        navigate('/doctors');
-      }, 1500);
+      setRegisteredResult({
+        userId: finalUserId,
+        doctorId: docRes.id
+      });
     } catch (error) {
       console.error('Failed to create doctor profile:', error);
       const msg = error.response?.data?.message || error.response?.data || 'Failed to create doctor profile';
@@ -176,6 +175,30 @@ function DoctorRegister() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const resetForm = () => {
+    setRegisteredResult(null);
+    setUserForm({
+      firstName: '',
+      lastName: '',
+      email: '',
+      password: '',
+      phoneNumber: '',
+      role: 'DOCTOR'
+    });
+    setProfileForm({
+      userId: '',
+      departmentId: departments.length > 0 ? departments[0].id : '',
+      qualification: '',
+      specialization: '',
+      experienceYears: '',
+      consultationFee: '',
+      availableFrom: '09:00',
+      availableTo: '17:00'
+    });
+    setErrors({});
+    setErrorMessage('');
   };
 
   return (
@@ -188,9 +211,107 @@ function DoctorRegister() {
       </div>
 
       {errorMessage && <div className="alert alert-danger">⚠️ {errorMessage}</div>}
-      {successMessage && <div className="alert alert-success">✓ {successMessage}</div>}
 
-      <div className="card">
+      {registeredResult ? (
+        /* SUCCESS RESULT CARD */
+        <div className="card" style={{ textAlign: 'center', padding: '2.5rem 2rem' }}>
+          <div
+            style={{
+              width: '68px',
+              height: '68px',
+              borderRadius: '50%',
+              backgroundColor: 'var(--success-bg)',
+              color: 'var(--success)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '2.5rem',
+              margin: '0 auto 1.25rem auto'
+            }}
+          >
+            ✓
+          </div>
+
+          <h2 style={{ color: 'var(--primary-dark)', fontSize: '1.6rem', marginBottom: '0.5rem' }}>
+            Doctor Registration Successful
+          </h2>
+          <p style={{ color: 'var(--text-secondary)', marginBottom: '1.75rem', fontSize: '0.95rem' }}>
+            The physician account and medical clinical profile have been registered.
+          </p>
+
+          <div
+            style={{
+              backgroundColor: 'var(--bg-main)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: '12px',
+              padding: '1.5rem',
+              maxWidth: '440px',
+              margin: '0 auto 1.5rem auto',
+              textAlign: 'left'
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '1rem',
+                paddingBottom: '0.75rem',
+                borderBottom: '1px solid var(--border-subtle)'
+              }}
+            >
+              <div>
+                <span style={{ fontWeight: 600, color: 'var(--text-main)', display: 'block' }}>User ID</span>
+                <small style={{ color: 'var(--text-secondary)' }}>Login credential ID</small>
+              </div>
+              <span style={{ fontWeight: 700, fontSize: '1.4rem', color: 'var(--primary-dark)' }}>
+                {registeredResult.userId}
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <span style={{ fontWeight: 600, color: 'var(--text-main)', display: 'block' }}>Doctor Profile ID</span>
+                <small style={{ color: 'var(--text-secondary)' }}>Clinical staff record ID</small>
+              </div>
+              <span style={{ fontWeight: 700, fontSize: '1.4rem', color: 'var(--text-main)' }}>
+                {registeredResult.doctorId}
+              </span>
+            </div>
+          </div>
+
+          <div
+            className="alert alert-info"
+            style={{
+              textAlign: 'left',
+              fontSize: '0.88rem',
+              maxWidth: '480px',
+              margin: '0 auto 1.75rem auto',
+              lineHeight: 1.5
+            }}
+          >
+            💡 <strong>Please note:</strong> The physician can use their <strong>User ID ({registeredResult.userId})</strong> or their email to sign in.
+          </div>
+
+          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+            <button
+              onClick={resetForm}
+              className="btn btn-primary"
+              style={{ padding: '0.65rem 1.5rem', fontWeight: 600 }}
+            >
+              + Register Another Doctor
+            </button>
+            <button
+              onClick={() => navigate('/doctors')}
+              className="btn btn-secondary"
+              style={{ padding: '0.65rem 1.5rem' }}
+            >
+              View All Doctors
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="card">
         {/* MODE TOGGLE */}
         <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.75rem', justifyContent: 'center' }}>
           <button
@@ -444,6 +565,7 @@ function DoctorRegister() {
           </button>
         </form>
       </div>
+      )}
     </div>
   );
 }

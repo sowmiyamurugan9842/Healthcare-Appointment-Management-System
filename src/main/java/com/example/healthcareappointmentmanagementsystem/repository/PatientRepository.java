@@ -27,12 +27,36 @@ public interface PatientRepository extends JpaRepository<Patient, Long> {
     Optional<Patient> findByUser(User user);
 
     /**
+     * Finds a patient profile by the email address of their base User account.
+     *
+     * @param email email of the user
+     * @return Optional containing the Patient if found
+     */
+    Optional<Patient> findByUser_Email(String email);
+
+    /**
+     * Finds a patient profile by the ID of their base User account.
+     *
+     * @param userId ID of the user
+     * @return Optional containing the Patient if found
+     */
+    Optional<Patient> findByUser_Id(Long userId);
+
+    /**
      * Checks if a patient profile exists for a given User account.
      *
      * @param user base User entity
      * @return true if patient profile exists, false otherwise
      */
     boolean existsByUser(User user);
+
+    /**
+     * Checks if a patient profile exists for a given User email.
+     *
+     * @param email user email
+     * @return true if patient profile exists, false otherwise
+     */
+    boolean existsByUser_Email(String email);
 
     /**
      * Finds all patients with a specific blood group.

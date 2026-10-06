@@ -12,6 +12,9 @@ import com.example.healthcareappointmentmanagementsystem.mapper.PatientMapper;
 import com.example.healthcareappointmentmanagementsystem.repository.PatientRepository;
 import com.example.healthcareappointmentmanagementsystem.repository.UserRepository;
 import com.example.healthcareappointmentmanagementsystem.service.PatientService;
+import com.example.healthcareappointmentmanagementsystem.exception.UnauthorizedException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -75,6 +78,37 @@ public class PatientServiceImpl implements PatientService {
     public PatientResponse getPatientById(Long id) {
         Patient patient = patientRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Patient profile not found with ID: " + id));
+        return patientMapper.toResponse(patient);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PatientResponse getCurrentPatientProfile() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getName())) {
+            throw new UnauthorizedException("User is not authenticated. Please log in.");
+        }
+
+        String email = auth.getName();
+        Patient patient = patientRepository.findByUser_Email(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Patient profile not found for user: " + email));
+
+        return patientMapper.toResponse(patient);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PatientResponse getPatientByUserId(Long userId) {
+        Patient patient = patientRepository.findByUser_Id(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Patient profile not found for user ID: " + userId));
+        return patientMapper.toResponse(patient);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PatientResponse getPatientByUserEmail(String email) {
+        Patient patient = patientRepository.findByUser_Email(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Patient profile not found for email: " + email));
         return patientMapper.toResponse(patient);
     }
 

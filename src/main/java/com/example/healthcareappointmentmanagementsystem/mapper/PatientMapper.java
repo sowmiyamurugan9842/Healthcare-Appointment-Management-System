@@ -36,6 +36,7 @@ public class PatientMapper {
 
         return PatientResponse.builder()
                 .id(patient.getId())
+                .userId(patient.getUser() != null ? patient.getUser().getId() : null)
                 .fullName(fullName)
                 .email(email)
                 .phoneNumber(phone)

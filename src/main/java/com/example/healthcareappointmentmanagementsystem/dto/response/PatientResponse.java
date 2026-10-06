@@ -18,6 +18,7 @@ import java.time.LocalDate;
 public class PatientResponse {
 
     private Long id;
+    private Long userId;
     private String fullName;
     private String email;
     private String phoneNumber;

@@ -51,12 +51,26 @@ public interface PrescriptionService {
     List<PrescriptionResponse> getPrescriptionsByPatient(Long patientId);
 
     /**
+     * Retrieves all prescriptions issued to the currently authenticated patient.
+     *
+     * @return list of PrescriptionResponse DTOs
+     */
+    List<PrescriptionResponse> getMyPrescriptionsForPatient();
+
+    /**
      * Retrieves all prescriptions created by a specific doctor ID.
      *
      * @param doctorId Doctor ID
      * @return list of PrescriptionResponse DTOs
      */
     List<PrescriptionResponse> getPrescriptionsByDoctor(Long doctorId);
+
+    /**
+     * Retrieves all prescriptions created by the currently authenticated doctor.
+     *
+     * @return list of PrescriptionResponse DTOs
+     */
+    List<PrescriptionResponse> getMyPrescriptionsForDoctor();
 
     /**
      * Retrieves prescriptions scheduled for a specific follow-up date.

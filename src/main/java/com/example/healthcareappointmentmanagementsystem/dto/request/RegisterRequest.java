@@ -39,4 +39,13 @@ public class RegisterRequest {
 
     @NotNull(message = "Role is required")
     private Role role;
+
+    // Optional Patient medical profile details (automatically populated during PATIENT registration)
+    private java.time.LocalDate dateOfBirth;
+    private com.example.healthcareappointmentmanagementsystem.entity.Gender gender;
+    private com.example.healthcareappointmentmanagementsystem.entity.BloodGroup bloodGroup;
+    private String address;
+    private String emergencyContact;
+    private String allergies;
+    private String medicalHistory;
 }

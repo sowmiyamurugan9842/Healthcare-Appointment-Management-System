@@ -8,10 +8,16 @@ import com.example.healthcareappointmentmanagementsystem.repository.Notification
 import com.example.healthcareappointmentmanagementsystem.service.NotificationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.example.healthcareappointmentmanagementsystem.exception.UnauthorizedException;
+import com.example.healthcareappointmentmanagementsystem.repository.PatientRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.format.DateTimeFormatter;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -26,6 +32,7 @@ public class NotificationServiceImpl implements NotificationService {
 
     private final NotificationRepository notificationRepository;
     private final NotificationMapper notificationMapper;
+    private PatientRepository patientRepository;
 
     public NotificationServiceImpl(NotificationRepository notificationRepository,
                                    NotificationMapper notificationMapper) {
@@ -33,10 +40,51 @@ public class NotificationServiceImpl implements NotificationService {
         this.notificationMapper = notificationMapper;
     }
 
+    @Autowired(required = false)
+    public void setPatientRepository(PatientRepository patientRepository) {
+        this.patientRepository = patientRepository;
+    }
+
     @Override
     @Transactional(readOnly = true)
     public List<NotificationResponse> getNotificationsByPatient(Long patientId) {
+        // Security check: If caller is Patient (and not Admin), they can only view their own notifications
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getName())) {
+            boolean isAdmin = auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+            boolean isPatient = auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_PATIENT"));
+            if (isPatient && !isAdmin && patientRepository != null) {
+                String email = auth.getName();
+                Patient patient = patientRepository.findById(patientId).orElse(null);
+                if (patient != null && patient.getUser() != null && !patient.getUser().getEmail().equalsIgnoreCase(email)) {
+                    throw new UnauthorizedException("You are not authorized to view another patient's notifications.");
+                }
+            }
+        }
+
         return notificationRepository.findByPatientIdOrderByCreatedAtDesc(patientId)
+                .stream()
+                .map(notificationMapper::toResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<NotificationResponse> getMyNotifications() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getName())) {
+            throw new UnauthorizedException("User is not authenticated. Please log in.");
+        }
+
+        if (patientRepository == null) {
+            return Collections.emptyList();
+        }
+
+        String email = auth.getName();
+        Patient patient = patientRepository.findByUser_Email(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Patient profile not found for user: " + email));
+
+        return notificationRepository.findByPatientIdOrderByCreatedAtDesc(patient.getId())
                 .stream()
                 .map(notificationMapper::toResponse)
                 .collect(Collectors.toList());
@@ -58,6 +106,43 @@ public class NotificationServiceImpl implements NotificationService {
             n.setRead(true);
         }
         notificationRepository.saveAll(notifications);
+    }
+
+    @Override
+    public void markAllMyAsRead() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getName())) {
+            throw new UnauthorizedException("User is not authenticated. Please log in.");
+        }
+
+        if (patientRepository == null) {
+            return;
+        }
+
+        String email = auth.getName();
+        Patient patient = patientRepository.findByUser_Email(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Patient profile not found for user: " + email));
+
+        markAllAsRead(patient.getId());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long getMyUnreadCount() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getName())) {
+            throw new UnauthorizedException("User is not authenticated. Please log in.");
+        }
+
+        if (patientRepository == null) {
+            return 0L;
+        }
+
+        String email = auth.getName();
+        Patient patient = patientRepository.findByUser_Email(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Patient profile not found for user: " + email));
+
+        return notificationRepository.countByPatientIdAndIsReadFalse(patient.getId());
     }
 
     @Override
