@@ -51,3 +51,10 @@ scratch/
 ### OS Files ###
 .DS_Store
 Thumbs.db
+
+### Frontend & Vercel ###
+.vercel
+node_modules/
+reactapp/node_modules/
+reactapp/build/
+

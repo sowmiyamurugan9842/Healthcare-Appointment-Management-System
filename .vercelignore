@@ -1,0 +1,8 @@
+target/
+.mvn/
+scratch/
+node_modules/
+reactapp/node_modules/
+reactapp/build/
+.git/
+.DS_Store
